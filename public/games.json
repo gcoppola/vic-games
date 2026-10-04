@@ -1,7 +1,7 @@
 {
   "title": "Vic's Games",
   "tagline": "Little worlds to explore — playable on phone or computer. Pick one and dive in. ✨",
-  "build": 24,
+  "build": 25,
   "games": [
     { "file": "warcraft.html", "src": "warcraft.html", "icon": "⚔️", "tag": "Strategy", "title": "Warbound: Orcs & Humans", "desc": "A classic pixel-art real-time strategy: mine gold, chop lumber, raise an army and battle the enemy.", "accent": "#ff9d4a" },
     { "file": "wc3.html", "src": "warcraft3.html", "icon": "🛡️", "tag": "Strategy · HD", "title": "Warbound HD", "desc": "The same war, redrawn in a crisper, higher-definition style. Same build-and-battle gameplay.", "accent": "#5fb0ff" },

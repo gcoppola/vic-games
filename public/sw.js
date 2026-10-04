@@ -1,6 +1,6 @@
 /* Sparklehoof's Meadow — service worker (offline + app-like install).
    Bump CACHE on every deploy so a new build replaces the old cache. */
-const CACHE = 'sparklehoof-b24';
+const CACHE = 'sparklehoof-b25';
 const CORE = [
   './fairyland.html',
   './manifest.webmanifest',

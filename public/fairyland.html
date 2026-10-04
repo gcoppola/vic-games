@@ -15,7 +15,9 @@
 <script>if('serviceWorker' in navigator){ window.addEventListener('load',function(){ navigator.serviceWorker.register('sw.js').catch(function(){});
   // ES-module imports fire before the SW takes control, so precache the exact CDN modules THIS load fetched (real dep tree, via Performance API) into the SW's cache → true offline play after the first online load. (cache name must match sw.js CACHE)
   try{ if(window.caches){ var us=performance.getEntriesByType('resource').map(function(e){return e.name;}).filter(function(u){return u.indexOf('//unpkg.com')>=0;});
-    if(us.length) caches.open('sparklehoof-b24').then(function(c){ us.forEach(function(u){ c.add(u).catch(function(){}); }); }); } }catch(e){} }); }</script>
+    if(us.length) caches.open('sparklehoof-b25').then(function(c){ us.forEach(function(u){ c.add(u).catch(function(){}); }); }); } }catch(e){} }); }
+  // never a forever-spinner: if the 3D engine (fetched from the internet the first time) hasn't started after 15s, say so kindly + offer a retry tap
+  setTimeout(function(){ var l=document.getElementById('loading'); if(l && l.style.display!=='none'){ l.innerHTML='🦄 The magic needs the internet the first time.<br>Check the Wi-Fi, then <b>tap to try again</b> ✨'; l.style.cursor='pointer'; l.onclick=function(){ location.reload(); }; } },15000);</script>
 <style>
   :root{ --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px); --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px); }
   *{margin:0;padding:0;box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none;}
@@ -62,7 +64,7 @@
 
   /* wardrobe overlay */
   #wardrobe{position:fixed;inset:0;z-index:30;display:none;align-items:center;justify-content:center;background:rgba(120,70,150,.35);backdrop-filter:blur(3px);}
-  #wcard{background:linear-gradient(#fff,#ffe9f8);border:6px solid #fff;border-radius:26px;padding:18px 20px 22px;max-width:92vw;
+  #wcard{background:linear-gradient(#fff,#ffe9f8);border:6px solid #fff;border-radius:26px;padding:18px 20px 22px;max-width:92vw;max-height:88vh;overflow:auto;
     box-shadow:0 12px 40px rgba(150,60,140,.4);text-align:center;}
   #wcard h2{font-size:24px;color:#c14d9e;margin-bottom:6px;}
   .wrow{display:flex;align-items:center;gap:10px;margin:9px 0;}
@@ -70,7 +72,11 @@
   .swatches{display:flex;gap:9px;flex-wrap:wrap;}
   .sw{width:46px;height:46px;border-radius:50%;border:4px solid #fff;cursor:pointer;box-shadow:0 3px 7px rgba(0,0,0,.18);}
   .sw.sel{border-color:#ffd24a;box-shadow:0 0 0 3px #ffd24a,0 3px 7px rgba(0,0,0,.2);transform:scale(1.08);}
-  #wclose,#lkclose,#pclose,#jclose,#wmclose{margin-top:12px;width:72px;height:72px;border-radius:50%;font-size:40px;background:radial-gradient(circle at 38% 32%,#fff,#b6ffcf 70%,#5fe08a);border:5px solid #fff;cursor:pointer;box-shadow:0 5px 14px rgba(60,180,110,.4);}
+  #wclose,#lkclose,#pclose,#jclose,#wmclose{margin:12px auto 0;width:72px;height:72px;border-radius:50%;font-size:40px;line-height:62px;background:radial-gradient(circle at 38% 32%,#fff,#b6ffcf 70%,#5fe08a);border:5px solid #fff;cursor:pointer;box-shadow:0 5px 14px rgba(60,180,110,.4);
+    position:sticky;bottom:4px;z-index:3;} /* sticky: the ✓ stays on-screen even when a card is taller than the screen */
+  /* cards scroll with a finger (the global touch-action:none would otherwise freeze them, hiding the ✓ on phones/iPads) */
+  #wcard,#lkcard,#pcard,#jcard,#wmcard,#wcard *,#lkcard *,#pcard *,#jcard *,#wmcard *{touch-action:pan-y;}
+  #wcard,#lkcard,#pcard,#jcard,#wmcard{overscroll-behavior:contain;-webkit-overflow-scrolling:touch;}
 
   /* word locket + parent panel (reuse the wardrobe look) */
   #locket,#parent,#journey,#worldMap{position:fixed;inset:0;z-index:31;display:none;align-items:center;justify-content:center;background:rgba(120,70,150,.4);backdrop-filter:blur(3px);}
@@ -147,6 +153,10 @@
   @keyframes ctwiggle{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
   .face.ctwiggle{animation:ctwiggle .3s;}
   .bubfaces .face:active{transform:scale(.86);}
+  .bubq{font-size:17px;font-weight:bold;color:#a83b86;text-align:center;line-height:1.25;max-width:320px;padding:0 6px;}
+  .bubreplay{position:absolute;top:-16px;right:-16px;width:42px;height:42px;border-radius:50%;background:radial-gradient(circle at 38% 32%,#fff,#e7d4ff 70%,#c9b3ff);border:3px solid #fff;
+    box-shadow:0 3px 9px rgba(150,110,220,.4);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:transform .15s;}
+  .bubreplay.ping{transform:scale(1.25);}
 
   /* milestone popup */
   #pop{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%) scale(0);z-index:35;pointer-events:none;text-align:center;
@@ -166,7 +176,44 @@
     background:linear-gradient(#ff8ad0,#e05bb0);border:6px solid #fff;border-radius:40px;
     box-shadow:0 7px 0 #b83f8c,0 12px 24px rgba(160,60,140,.5);}
   #tplay:active{transform:translateY(5px);box-shadow:0 2px 0 #b83f8c;}
-  #loading{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#ffd9f0;color:#c14d9e;font-size:22px;}
+  #loading{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#ffd9f0;color:#c14d9e;font-size:22px;text-align:center;padding:24px;line-height:1.5;}
+
+  /* off-screen guide: a bobbing bubble at the screen edge pointing at a quest friend / the rainbow star */
+  #guide{position:fixed;left:0;top:0;z-index:13;width:64px;height:64px;margin:-32px 0 0 -32px;display:none;pointer-events:none;}
+  #guide .gb{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 38% 32%,#fff,#ffe6f6 70%,#ffc2e6);border:4px solid #fff;
+    box-shadow:0 4px 14px rgba(180,80,160,.45);display:flex;align-items:center;justify-content:center;font-size:32px;animation:gpulse 1.1s ease-in-out infinite;}
+  #guide .gp{position:absolute;left:50%;top:50%;width:0;height:0;margin:-11px 0 0 0;border:11px solid transparent;border-left:16px solid #ff7ac0;transform-origin:0 50%;}
+  @keyframes gpulse{0%,100%{transform:scale(1);}50%{transform:scale(1.12);}}
+
+  /* ---- responsive HUD: the wide layout needs ~1280px; narrower screens re-flow instead of overlapping ---- */
+  @media (max-width:1279px){ /* iPad / laptop: jars + tools share the top row; rainbow arc + level badge drop to a second row */
+    #arc{top:calc(96px + var(--sat));width:min(360px,56vw);}
+    #lvl{top:calc(90px + var(--sat));left:calc(50% - min(180px,28vw) - 34px);}
+  }
+  @media (max-height:520px){ /* landscape phone: smaller HUD + controls so the meadow isn't buried */
+    .jar{width:50px;height:60px;} .jar .ico{font-size:21px;} .jar .cnt{font-size:12px;} #jars{gap:6px;}
+    .tool{width:48px;height:48px;font-size:24px;border-width:3px;} #tools{gap:8px;}
+    #arc{top:calc(86px + var(--sat));height:20px;border-width:3px;} #lvl{top:calc(76px + var(--sat));width:44px;height:44px;} #lvlnum{font-size:18px;}
+    .move{width:84px;height:84px;font-size:34px;} .magic,#magicring{width:104px;height:104px;} .magic{font-size:46px;}
+    #bLeft{left:calc(16px + var(--sal));bottom:calc(20px + var(--sab));} #bRight{left:calc(176px + var(--sal));bottom:calc(20px + var(--sab));} #bUp{left:calc(96px + var(--sal));bottom:calc(100px + var(--sab));}
+    #bMagic,#magicring{right:calc(22px + var(--sar));bottom:calc(24px + var(--sab));}
+  }
+  @media (max-width:725px){ /* portrait phone: tools become a column on the right, arc tucks under the jars, controls shrink so ✨ never covers ➡️ */
+    .jar{width:48px;height:58px;} .jar .ico{font-size:20px;} .jar .cnt{font-size:12px;} #jars{gap:6px;}
+    #tools{flex-direction:column;gap:8px;} .tool{width:48px;height:48px;font-size:24px;border-width:3px;}
+    #arc{left:calc(14px + var(--sal));transform:none;top:calc(78px + var(--sat));width:210px;height:20px;border-width:3px;}
+    #lvl{left:calc(236px + var(--sal));top:calc(14px + var(--sat));transform:none;width:48px;height:48px;} #lvl.bump{transform:scale(1.35);} #lvlnum{font-size:19px;}
+    .move{width:84px;height:84px;font-size:34px;} .magic,#magicring{width:104px;height:104px;} .magic{font-size:46px;}
+    #bLeft{left:calc(12px + var(--sal));bottom:calc(36px + var(--sab));} #bRight{left:calc(108px + var(--sal));bottom:calc(36px + var(--sab));} #bUp{left:calc(60px + var(--sal));bottom:calc(124px + var(--sab));}
+    #bMagic,#magicring{right:calc(16px + var(--sar));bottom:calc(36px + var(--sab));}
+  }
+  @media (max-width:725px) and (max-height:520px){ /* small phone held sideways (e.g. iPhone SE): one compact row, no column clashing with ✨ */
+    .jar{width:44px;height:52px;} .jar .ico{font-size:18px;}
+    #tools{flex-direction:row;gap:6px;} .tool{width:40px;height:40px;font-size:20px;}
+    #arc{top:calc(66px + var(--sat));width:194px;} #lvl{left:calc(220px + var(--sal));top:calc(12px + var(--sat));width:44px;height:44px;}
+    #bLeft{left:calc(16px + var(--sal));bottom:calc(20px + var(--sab));} #bRight{left:calc(176px + var(--sal));bottom:calc(20px + var(--sab));} #bUp{left:calc(96px + var(--sal));bottom:calc(100px + var(--sab));}
+    #bMagic,#magicring{right:calc(22px + var(--sar));bottom:calc(24px + var(--sab));}
+  }
 </style>
 </head>
 <body>
@@ -233,12 +280,13 @@
 </div></div>
 
 <div id="pop"><div class="pic"></div><div class="pt"></div></div>
+<div id="guide"><div class="gp"></div><div class="gb"></div></div>
 
 <div id="title">
   <div class="tem">🦄</div>
   <div id="tlogo">Victoria Coppola's<br>Meadow<small>✨ a magical playground ✨</small></div>
   <div id="tplay">▶ PLAY</div>
-  <div id="tver" style="position:absolute;bottom:10px;right:14px;font-size:12px;color:#a83b86;opacity:.55;font-weight:bold;">build 24</div>
+  <div id="tver" style="position:absolute;bottom:10px;right:14px;font-size:12px;color:#a83b86;opacity:.55;font-weight:bold;">build 25</div>
 </div>
 
 <script type="importmap">
@@ -529,7 +577,8 @@ function buildUnicornBody(opt){
   const bodyM = deluxe
     ? new THREE.MeshPhysicalMaterial({color:opt.body,roughness:0.4,metalness:0.0,sheen:1.0,sheenColor:new THREE.Color(0xffe9fb),sheenRoughness:0.55,clearcoat:0.35,clearcoatRoughness:0.45}) // pearly hero sheen
     : new THREE.MeshStandardMaterial({color:opt.body,roughness:0.55});
-  const maneCols=(opt.mane==='rainbow')?RAINBOW:[opt.mane];
+  const maneCols=(opt.mane==='rainbow'||opt.mane==='shimmer')?RAINBOW:[opt.mane];
+  const MM=(opt.mane==='shimmer')?(c=>new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.45,roughness:0.4})):maneMat; // shimmer = own materials, hue-cycled in update()
   const maneParts=[], ears=[], eyes=[];
   // barrel + rounded chest + haunches => horse silhouette
   const barrel=new THREE.Mesh(new THREE.CapsuleGeometry(0.58,1.5,8,SEG),bodyM); barrel.rotation.z=Math.PI/2; barrel.position.set(-0.05,1.34,0); barrel.scale.set(1,1,0.92); barrel.castShadow=true; g.add(barrel);
@@ -563,15 +612,15 @@ function buildUnicornBody(opt){
   hornMesh.position.set(0.16,0.56,0); hornMesh.rotation.z=-0.22; head.add(hornMesh);
   let hornLight=null; if(opt.withLight){ hornLight=new THREE.PointLight(opt.horn,1.3,9); hornLight.position.set(0.24,1.05,0); head.add(hornLight); }
   // fuller forelock
-  { const fl=new THREE.Mesh(new THREE.SphereGeometry(0.22,12,10),maneMat(maneCols[0])); fl.scale.set(0.85,1.25,0.55); fl.position.set(0.06,0.42,0); fl.rotation.z=0.45; head.add(fl); maneParts.push(fl);
-    const fl2=new THREE.Mesh(new THREE.CapsuleGeometry(0.07,0.4,4,8),maneMat(maneCols[1%maneCols.length])); fl2.position.set(0.3,0.24,0); fl2.rotation.z=-0.6; head.add(fl2); maneParts.push(fl2); }
+  { const fl=new THREE.Mesh(new THREE.SphereGeometry(0.22,12,10),MM(maneCols[0])); fl.scale.set(0.85,1.25,0.55); fl.position.set(0.06,0.42,0); fl.rotation.z=0.45; head.add(fl); maneParts.push(fl);
+    const fl2=new THREE.Mesh(new THREE.CapsuleGeometry(0.07,0.4,4,8),MM(maneCols[1%maneCols.length])); fl2.position.set(0.3,0.24,0); fl2.rotation.z=-0.6; head.add(fl2); maneParts.push(fl2); }
   // flowing mane ridge (fewer spheres for mobile friends/dancers; the deluxe hero keeps all 10)
-  { const MK=(LOW&&!deluxe)?5:10; for(let k=0;k<MK;k++){ const t=k/(MK-1),c=maneCols[k%maneCols.length]; const m=new THREE.Mesh(new THREE.SphereGeometry(0.26,12,10),maneMat(c)); m.scale.set(1.05,1.3,0.42); m.position.set(1.32-t*1.5,2.98-t*1.08,0); m.rotation.z=0.5; g.add(m); maneParts.push(m); } }
+  { const MK=(LOW&&!deluxe)?5:10; for(let k=0;k<MK;k++){ const t=k/(MK-1),c=maneCols[k%maneCols.length]; const m=new THREE.Mesh(new THREE.SphereGeometry(0.26,12,10),MM(c)); m.scale.set(1.05,1.3,0.42); m.position.set(1.32-t*1.5,2.98-t*1.08,0); m.rotation.z=0.5; g.add(m); maneParts.push(m); } }
   // trailing locks at the withers (skipped on mobile friends)
-  for(let k=0;k<((LOW&&!deluxe)?0:3);k++){ const c=maneCols[k%maneCols.length]; const lock=new THREE.Mesh(new THREE.CapsuleGeometry(0.08,0.5,4,8),maneMat(c)); lock.position.set(-0.12-k*0.1,1.86-k*0.05,0); lock.rotation.z=0.95; g.add(lock); maneParts.push(lock); }
+  for(let k=0;k<((LOW&&!deluxe)?0:3);k++){ const c=maneCols[k%maneCols.length]; const lock=new THREE.Mesh(new THREE.CapsuleGeometry(0.08,0.5,4,8),MM(c)); lock.position.set(-0.12-k*0.1,1.86-k*0.05,0); lock.rotation.z=0.95; g.add(lock); maneParts.push(lock); }
   // flowing tail (fuller + longer)
   const tail=new THREE.Group(); tail.position.set(-1.18,1.7,0); g.add(tail); const nStr=deluxe?9:(LOW?4:6);
-  for(let k=0;k<nStr;k++){ const c=maneCols[k%maneCols.length]; const strand=new THREE.Mesh(new THREE.CapsuleGeometry(0.075,1.15,4,8),maneMat(c)); strand.position.set(0,-0.42,(k-(nStr-1)/2)*0.06); strand.rotation.z=2.45; strand.rotation.x=(k-(nStr-1)/2)*0.1; tail.add(strand); maneParts.push(strand); }
+  for(let k=0;k<nStr;k++){ const c=maneCols[k%maneCols.length]; const strand=new THREE.Mesh(new THREE.CapsuleGeometry(0.075,1.15,4,8),MM(c)); strand.position.set(0,-0.42,(k-(nStr-1)/2)*0.06); strand.rotation.z=2.45; strand.rotation.x=(k-(nStr-1)/2)*0.1; tail.add(strand); maneParts.push(strand); }
   // legs (hip-pivoted groups: thigh + cannon + hoof, so the gait swings from the hip)
   const legs=[]; const hips=[[0.74,1.06,0.4],[0.74,1.06,-0.4],[-0.8,1.1,0.44],[-0.8,1.1,-0.44]];
   for(const hp of hips){ const leg=new THREE.Group(); leg.position.set(hp[0],hp[1],hp[2]);
@@ -583,20 +632,29 @@ function buildUnicornBody(opt){
   return {group:g, legs, hornMesh, hornLight, maneParts, ears, tail, eyes};
 }
 // glowing rainbow wings that appear only while flying (the school-quest reward)
-function buildWings(){ const g=new THREE.Group(); g.visible=false; const tint=[0xff9ad4,0x8ad0ff,0xffd24a,0xb6ffcf];
+const GALAXY_COLS=[0x6a3cff,0x2fa8ff,0xff4fc8,0x9a7bff];
+function buildWings(galaxy){ const g=new THREE.Group(); g.visible=false; const tint=galaxy?GALAXY_COLS:[0xff9ad4,0x8ad0ff,0xffd24a,0xb6ffcf]; // Galaxy Wings = deep-space violet/cyan/pink
   for(const s of [-1,1]){ const wing=new THREE.Group(); wing.position.set(-0.15,1.85,0.12*s);
-    for(let i=0;i<4;i++){ const m=new THREE.MeshStandardMaterial({color:0xffffff,emissive:tint[i],emissiveIntensity:0.6,roughness:0.4,transparent:true,opacity:0.85,side:THREE.DoubleSide});
+    for(let i=0;i<4;i++){ const m=new THREE.MeshStandardMaterial({color:galaxy?0x1a1040:0xffffff,emissive:tint[i],emissiveIntensity:galaxy?0.85:0.6,roughness:0.4,transparent:true,opacity:galaxy?0.92:0.85,side:THREE.DoubleSide});
       const blade=new THREE.Mesh(new THREE.SphereGeometry(1,10,9),m); blade.scale.set(0.1,1.25-i*0.18,0.62-i*0.1);
       blade.position.set(-0.18*i,0.55+i*0.12,s*(0.55+i*0.36)); blade.rotation.z=s*(-0.32-i*0.05); wing.add(blade); }
     g.add(wing); g.userData[s>0?'R':'L']=wing; }
   return g; }
-function buildUnicorn(){ if(uni) scene.remove(uni);
+// free the old hero before building a new one (dress-up rebuilds on every swatch tap → ~45 meshes of GPU buffers leaked per tap). Shared geos/mats are kept.
+const U_SHARED_MATS=new Set([U_GLINT,U_DARK,U_ROSE,U_EARIN,U_HOOF]);
+function disposeHero(g){ const cached=new Set(__maneMatCache.values()); g.traverse(o=>{ if(o.geometry && !o.isSprite && o.geometry!==HORN_GEO) o.geometry.dispose();
+  const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[]; ms.forEach(m=>{ if(!U_SHARED_MATS.has(m) && !cached.has(m)) m.dispose(); }); }); }
+let maneShimmer=false;
+function buildUnicorn(){ if(uni){ scene.remove(uni); disposeHero(uni); }
   const r=buildUnicornBody({body:LOOK.body, mane:LOOK.mane, horn:LOOK.horn, hornGlow:2.2, withLight:true, deluxe:true});
-  uni=r.group; maneParts=r.maneParts; hornMesh=r.hornMesh; hornLight=r.hornLight;
+  uni=r.group; maneParts=r.maneParts; hornMesh=r.hornMesh; hornLight=r.hornLight; maneShimmer=(LOOK.mane==='shimmer');
   if(LOW && hornMesh){ const hg=glowSprite(LOOK.horn===0xffffff?0xfff3c0:LOOK.horn,1.5,0.55); hg.position.set(0,0.35,0); hornMesh.add(hg); hornGlowSprite=hg; } // soft horn glow on mobile (no bloom there); animated by magic charge in update()
   uni.scale.setScalar(1.3); scene.add(uni);
-  flyWings=buildWings(); uni.add(flyWings);
+  flyWings=buildWings(!!UNLOCK.galaxyWings); uni.add(flyWings);
 }
+function grantGalaxyWings(){ UNLOCK.galaxyWings=true; persist();
+  if(uni&&flyWings){ uni.remove(flyWings); disposeHero(flyWings); flyWings=buildWings(true); uni.add(flyWings); }
+  setTimeout(()=>{ try{ startFlight(true); }catch(e){} },2400); } // try them on right away (after the unlock popup) — and from now on stars launch flights
 function startFlight(grand,durOverride){ if(FLY.dur>0)return; const boost=!!durOverride; FLY.grand=!!grand; FLY.dur=durOverride||(grand?32:20); FLY.t=0;
   if(!DISCOVERED.wingsEarned){ DISCOVERED.wingsEarned=true; if(typeof persistDiscovered==='function')persistDiscovered(); } // wings earned for good -> stars re-launch flight after this
   try{ chime(boost?1:2); }catch(e){}
@@ -648,8 +706,8 @@ function skillOn(id){ return !!(SETTINGS.skills && SETTINGS.skills[id]); }
 function eduActive(){ return skillOn('counting'); }          // back-compat for the counting MVP
 let eduLevel=0; try{ eduLevel=Math.min(2,parseInt(localStorage.getItem('sparklehoof_edulevel'))||0); }catch(e){}
 eduLevel=Math.max(eduLevel, SETTINGS.ageStop|0);              // difficulty slider sets the starting level
-let __rateOverride=null;                                     // fairySay reads this so learning lines can slow down
-function learnNarrate(txt,rate){ if(SETTINGS.narrationMute)return; __rateOverride=(rate!=null?rate:SETTINGS.speechRate); fairySay(txt); __rateOverride=null; }
+let __rateOverride=null, __lastLearnLine='';                // fairySay reads __rateOverride so learning lines can slow down
+function learnNarrate(txt,rate){ __lastLearnLine=txt; if(SETTINGS.narrationMute)return; __rateOverride=(rate!=null?rate:SETTINGS.speechRate); fairySay(txt); __rateOverride=null; }
 function densityAllows(){ return Math.random() < [0.5,0.85,1.0][Math.min(2,(SETTINGS.density|0))]; } // rare/normal/often — gates the chatty extras, never core counting
 function recordDiscovery(kind,key,value){ try{
   if(kind==='countedTo'){ DISCOVERED.countedTo=Math.max(DISCOVERED.countedTo,value|0); }
@@ -727,8 +785,10 @@ function projectBubbles(){ if(!__bubbles.length)return;
     // the bubble's auto width (which would wrap the tile row into a tall off-screen column). -50%/-100% re-centre it.
     if(b.root.style.left!=='0px'){ b.root.style.left='0px'; b.root.style.top='0px'; }
     b.root.style.transform='translate(calc('+Math.round(lx)+'px - 50%),calc('+Math.round(ly)+'px - 100%))'; } }
-function buildRainbowGroup(){ const cols=[0xff6b6b,0xffb86b,0xffe66b,0x8ce66b,0x6bc6ff,0xb36bff]; const g=new THREE.Group();
-  cols.forEach((c,i)=>{ const t=new THREE.Mesh(new THREE.TorusGeometry(16-i*1.1,0.6,6,40,Math.PI),new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.5,roughness:0.5,transparent:true,opacity:0.92})); t.position.y=i*0.2; g.add(t); }); return g; }
+// rainbow bands share ONE geometry+material set (built once): every spell paints a rainbow, and fresh per-cast buffers were never freed → GPU memory crept up all session
+const RB_BANDS=[0xff6b6b,0xffb86b,0xffe66b,0x8ce66b,0x6bc6ff,0xb36bff].map((c,i)=>({geo:new THREE.TorusGeometry(16-i*1.1,0.6,6,40,Math.PI),mat:new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:0.5,roughness:0.5,transparent:true,opacity:0.92})}));
+function buildRainbowGroup(){ const g=new THREE.Group();
+  RB_BANDS.forEach((b,i)=>{ const t=new THREE.Mesh(b.geo,b.mat); t.position.y=i*0.2; g.add(t); }); return g; }
 function addLabelSprite(mesh,text,style){ const tex=makeLabelTexture(text,{style:style});
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false})); sp.scale.setScalar(style==='glyph'?1.2:1.5); sp.position.y=0.25; mesh.add(sp); mesh.userData.label=sp; return sp; }
 
@@ -854,7 +914,8 @@ function genTakeAway(){ const ceil=eduCeiling(),type=pick(TYPES_E),start=2+Math.
     reframe:()=>{ learnNarrate('We give some away... now count what is left... '+countAloud(left)+' '+numWord(start)+' take away '+numWord(take)+' is '+numWord(left)+'!'); const v=anchorFn(new THREE.Vector3()); spark(v.x,v.y,v.z,0xff9ad4,0.7,2); },
     award:()=>recordDiscovery('countedTo',null,left) }; }
 function genFirstSound(){ const pool=letterPool().map(d=>d.L),cands=SPELL_WORDS.filter(s=>pool.includes(s.w[0])); if(!cands.length)return null;
-  const word=pick(cands),correct=word.w[0],others=pool.filter(L=>L!==correct),n=[2,2,3][Math.min(2,effLevel())],W=word.w.toUpperCase();
+  const SAME_CUE={a:'o',o:'a'}; // apple + otter share the spoken 'ah' cue → never offer both, or two tiles are "right"
+  const word=pick(cands),correct=word.w[0],others=pool.filter(L=>L!==correct&&L!==SAME_CUE[correct]),n=[2,2,3][Math.min(2,effLevel())],W=word.w.toUpperCase();
   return { id:'firstSound', icon:word.e, faces:shuffle([correct].concat(shuffle(others).slice(0,n-1))), answer:correct, faceClass:'ctletter', anchorFn:chAnchor(),
     prompt:()=>learnNarrate('Which letter does '+W+' start with? Listen... '+word.o+'... '+W+'!',0.82),
     reframe:()=>{ learnNarrate('Listen again... '+word.o+'... '+W+'. That is the letter '+correct.toUpperCase()+'!',0.82); spark(P.x,3,P.z,0xffe66b,0.7,2); },
@@ -869,11 +930,12 @@ function genSightWord(){ const pool=WORD_BANK.slice(0,wordCeiling()); if(pool.le
 const DICE=['','⚀','⚁','⚂','⚃','⚄','⚅']; // canonical subitizing patterns 1-6
 const CVC_WORDS=[ {w:'cat',e:'🐱',p:['kuh','ah','tuh'],rime:'-at'},{w:'hat',e:'👒',p:['huh','ah','tuh'],rime:'-at'},{w:'bat',e:'🦇',p:['buh','ah','tuh'],rime:'-at'},
   {w:'dog',e:'🐶',p:['duh','ah','guh'],rime:'-og'},{w:'log',e:'🪵',p:['luh','ah','guh'],rime:'-og'},
-  {w:'pig',e:'🐷',p:['puh','ih','guh'],rime:'-ig'},{w:'wig',e:'💇',p:['wuh','ih','guh'],rime:'-ig'},
-  {w:'sun',e:'🌞',p:['sss','uh','nnn'],rime:'-un'},{w:'bun',e:'🥐',p:['buh','uh','nnn'],rime:'-un'},
+  {w:'pig',e:'🐷',p:['puh','ih','guh'],rime:'-ig'},
+  {w:'sun',e:'🌞',p:['sss','uh','nnn'],rime:'-un'},{w:'run',e:'🏃',p:['rrr','uh','nnn'],rime:'-un'},
   {w:'hen',e:'🐔',p:['huh','eh','nnn'],rime:'-en'},{w:'pen',e:'🖊️',p:['puh','eh','nnn'],rime:'-en'},{w:'ten',e:'🔟',p:['tuh','eh','nnn'],rime:'-en'},
-  {w:'top',e:'🔝',p:['tuh','ah','puh'],rime:'-op'},{w:'mop',e:'🧹',p:['mmm','ah','puh'],rime:'-op'},
-  {w:'pan',e:'🍳',p:['puh','ah','nnn'],rime:'-an'},{w:'fan',e:'🪭',p:['fff','ah','nnn'],rime:'-an'},{w:'can',e:'🥫',p:['kuh','ah','nnn'],rime:'-an'} ];
+  {w:'bed',e:'🛏️',p:['buh','eh','duh'],rime:'-ed'},{w:'leg',e:'🦵',p:['lll','eh','guh'],rime:'-eg'},
+  {w:'cap',e:'🧢',p:['kuh','ah','puh'],rime:'-ap'},{w:'map',e:'🗺️',p:['mmm','ah','puh'],rime:'-ap'},{w:'bug',e:'🐛',p:['buh','uh','guh'],rime:'-ug'},{w:'hug',e:'🤗',p:['huh','uh','guh'],rime:'-ug'},
+  {w:'pan',e:'🍳',p:['puh','ah','nnn'],rime:'-an'},{w:'van',e:'🚐',p:['vvv','ah','nnn'],rime:'-an'},{w:'can',e:'🥫',p:['kuh','ah','nnn'],rime:'-an'} ];
 const BLEND_DEFS=[ {g:'sh',s:'shh',w:'sheep',e:'🐑'},{g:'ch',s:'ch',w:'chick',e:'🐤'},{g:'th',s:'th',w:'thumb',e:'👍'},{g:'st',s:'st',w:'star',e:'⭐'},{g:'fl',s:'fl',w:'flower',e:'🌸'},{g:'tr',s:'tr',w:'tree',e:'🌳'} ];
 // AGE-8 (tier 4): four-sound CCVC/CVCC words for blending + consonant-blend recognition (p = spoken phoneme cues, blend = the onset blend)
 const BLEND_WORDS=[ {w:'frog',e:'🐸',p:['fff','rrr','ah','guh'],blend:'fr'},{w:'flag',e:'🚩',p:['fff','lll','ah','guh'],blend:'fl'},{w:'drum',e:'🥁',p:['duh','rrr','uh','mmm'],blend:'dr'},{w:'crab',e:'🦀',p:['kuh','rrr','ah','buh'],blend:'cr'},
@@ -972,7 +1034,17 @@ function startChallenge(){ if(anyOverlayOpen()||CH.bubble||(zone!=='meadow'&&zon
   CH.bubble=makeThoughtBubble(r.anchorFn,{icon:r.icon,faces:r.faces,onPick:val=>onTilePick(val)});
   if(r.faceClass) CH.bubble.faceEls.forEach(el=>el.classList.add(r.faceClass));
   if(zone==='school') setBoardQuestion(r); // show the question up on the chalkboard too
-  r.prompt(); return true; }
+  r.prompt(); r.promptText=__lastLearnLine; addChallengeExtras(CH.bubble,r); return true; }
+// the question as TEXT (read-along for maths; for every quest when there's no voice — a muted iPad used to show tiles with no question) + a 🔊 hear-it-again chip
+function voiceOff(){ return !soundOn||!SPEECH_OK||SETTINGS.narrationMute; }
+function challengeShowsText(r){ return r.skill==='counting'||voiceOff(); } // sound/word quests stay listening tasks while a voice exists (the text would give the answer away)
+function addChallengeExtras(bub,r){ if(!bub)return;
+  const q=document.createElement('div'); q.className='bubq'; bub.root.insertBefore(q,bub.root.firstChild); bub.qEl=q;
+  const rp=document.createElement('div'); rp.className='bubreplay'; rp.textContent='🔊'; rp.title='Hear it again'; rp.style.pointerEvents='auto';
+  rp.addEventListener('click',()=>{ if(CH.round===r&&!r.done){ initAudio(); stopSpeech(); r.prompt(); CH.fadeT=Math.max(CH.fadeT,15); rp.classList.add('ping'); setTimeout(()=>rp.classList.remove('ping'),300); } });
+  bub.root.appendChild(rp); bub.replayEl=rp; refreshChallengeText(); }
+function refreshChallengeText(){ const b=CH.bubble,r=CH.round; if(!b||!r||!b.qEl)return; const show=challengeShowsText(r)&&!!r.promptText;
+  b.qEl.textContent=show?r.promptText.replace(/(^|[.!?]\s+)([a-z])/g,(m,p1,c)=>p1+c.toUpperCase()):''; b.qEl.style.display=show?'':'none'; if(b.replayEl)b.replayEl.style.display=voiceOff()?'none':''; b._bh=null; }
 function onTilePick(val){ if(!CH.round||CH.round.done)return;
   if(val===CH.round.answer){ finishChallenge(); return; }
   if(CH.resolved)return; onWrong(val); }
@@ -998,7 +1070,7 @@ function challengeTick(dt){ if(CH.bubble){ CH.fadeT-=dt; if((CH.fadeT<=0&&!CH.bu
   chInvite.t+=dt; if(chInvite.t>=chInvite.next){ chInvite.t=0; chInvite.next=70+Math.random()*60; if(densityAllows())fairySay('Trot to the castle and go through the glowing door to play counting and word games!'); } }
 
 const collectibles=[], sparkles=[], trail=[], babies=[], grownFlowers=[];
-let gameState='title', soundOn=true;
+let gameState='title', soundOn=true; try{ soundOn=localStorage.getItem('sparklehoof_sound')!=='0'; }catch(e){}
 const cam={ yaw:Math.PI };
 let UNLOCK={ rainbowMane:false, galaxyWings:false }; try{ const s=JSON.parse(localStorage.getItem('sparklehoof_unlock')||'null'); if(s)Object.assign(UNLOCK,s);}catch(e){}
 
@@ -1079,6 +1151,12 @@ function makeBaby(kind,x,z){ const g=new THREE.Group(); const col=kind==='bunny'
   if(kind==='foal'){ const horn=new THREE.Mesh(new THREE.ConeGeometry(0.1,0.5,8),new THREE.MeshStandardMaterial({color:0xffe66b,emissive:0xffe66b,emissiveIntensity:1.5})); horn.position.set(0,1.6,0.4); g.add(horn); }
   g.position.set(x,groundH(x,z),z); g.userData={kind,ph:Math.random()*6.28,follow:false}; meadow.add(g); babies.push(g); return g; }
 for(let i=0;i<5;i++){ const a=Math.random()*6.28,d=14+Math.random()*60; makeBaby(['bunny','foal','butterfly'][i%3],Math.cos(a)*d,Math.sin(a)*d); }
+// EARNED followers (star prizes, level-ups, the mane unlock) are saved — they used to vanish on reload
+const PAL_KINDS=['bunny','foal','butterfly'], MAX_EARNED=9, EARNED_PALS=[];
+try{ const a=JSON.parse(localStorage.getItem('sparklehoof_pals')||'[]'); if(Array.isArray(a))a.forEach(k=>{ if(PAL_KINDS.includes(k)&&EARNED_PALS.length<MAX_EARNED)EARNED_PALS.push(k); }); }catch(e){}
+function earnPal(kind,x,z){ if(EARNED_PALS.length>=MAX_EARNED)return null; const b=makeBaby(kind,x,z); b.userData.follow=true; EARNED_PALS.push(kind);
+  try{ localStorage.setItem('sparklehoof_pals',JSON.stringify(EARNED_PALS)); }catch(e){} return b; }
+function respawnEarnedPals(){ EARNED_PALS.forEach((k,i)=>{ const a=i/EARNED_PALS.length*6.28; makeBaby(k,P.x+Math.cos(a)*5,P.z+Math.sin(a)*5).userData.follow=true; }); }
 
 /* ============================================================
    UNICORN FRIENDS — wander the meadow, light up when you visit
@@ -1106,7 +1184,10 @@ function note(f,d,t,v,delay){ if(!AC||!soundOn)return; const o=AC.createOscillat
 function chime(tier){ const seq=[523.25,659.25,783.99]; seq.forEach((f,i)=>note(f,0.18,'triangle',0.22,i*0.09)); if(tier>=3){ note(1046.5,0.4,'triangle',0.22,0.3); } }
 let voices=[],fairyVoice=null;
 const SPEECH_OK=(typeof speechSynthesis!=='undefined')&&(typeof SpeechSynthesisUtterance!=='undefined'); // degrade cleanly with no TTS
-function pickVoice(){ try{ voices=speechSynthesis.getVoices(); fairyVoice=voices.find(v=>/female|woman|samantha|zira|google uk english female|karen/i.test(v.name))||voices.find(v=>/en/i.test(v.lang))||voices[0]||null; }catch(e){} }
+const VOICE_PREF=[/samantha/i,/google uk english female/i,/google us english/i,/(aria|jenny|ava|emma).*(natural|online)/i,/karen|moira|tessa|serena|allison|susan|victoria/i,/zira/i,/female|woman/i];
+function pickVoice(){ try{ voices=speechSynthesis.getVoices()||[]; const en=voices.filter(v=>/^en([-_]|$)/i.test(v.lang||'')); fairyVoice=null;
+  for(const re of VOICE_PREF){ fairyVoice=en.find(v=>re.test(v.name)); if(fairyVoice)break; }
+  if(!fairyVoice) fairyVoice=en.find(v=>v.localService)||en[0]||voices[0]||null; }catch(e){} }
 if(SPEECH_OK) try{ speechSynthesis.onvoiceschanged=pickVoice; pickVoice(); }catch(e){}
 /* ONE calm voice: lines never overlap and never truncate each other. A new line that
    arrives while Twinkle is speaking waits in a single slot (newest wins) and speaks on end. */
@@ -1128,21 +1209,29 @@ function say(cat){ const a=LINES[cat]; if(a) fairySay(a[Math.floor(Math.random()
    INPUT — arrow keys + big hold-buttons (kid friendly)
    ============================================================ */
 const held={up:false,left:false,right:false};
+const KEYMAP={ArrowUp:'up',ArrowLeft:'left',ArrowRight:'right',ArrowDown:'down',w:'up',a:'left',d:'right',s:'down',W:'up',A:'left',D:'right',S:'down'};
 addEventListener('keydown',e=>{ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();
-  if(e.key==='ArrowUp')held.up=true; if(e.key==='ArrowLeft')held.left=true; if(e.key==='ArrowRight')held.right=true; if(e.key==='ArrowDown')held.down=true;
-  if(e.key===' ') castMagic(); });
-addEventListener('keyup',e=>{ if(e.key==='ArrowUp')held.up=false; if(e.key==='ArrowLeft')held.left=false; if(e.key==='ArrowRight')held.right=false; if(e.key==='ArrowDown')held.down=false; });
+  if(e.key==='Escape'){ closeTopOverlay(); return; }
+  const k=KEYMAP[e.key]; if(k)held[k]=true;
+  if(e.key===' '&&!e.repeat) castMagic(); });
+addEventListener('keyup',e=>{ const k=KEYMAP[e.key]; if(k)held[k]=false; });
+addEventListener('blur',()=>{ held.up=held.left=held.right=held.down=false; }); // a key held while the tab loses focus no longer leaves the unicorn running forever
+// menus: tap the dimmed backdrop (outside the card) or press Escape to close — a second, always-reachable way out
+const OVERLAY_IDS=['wardrobe','locket','parent','journey','worldMap'];
+function closeTopOverlay(){ for(const id of OVERLAY_IDS){ const e=document.getElementById(id); if(e&&e.style.display==='flex'){ e.style.display='none'; note(784,0.12,'triangle',0.18); return true; } } return false; }
+OVERLAY_IDS.forEach(id=>{ const e=document.getElementById(id); if(e) e.addEventListener('click',ev=>{ if(ev.target===e){ e.style.display='none'; note(784,0.12,'triangle',0.18); } }); });
 function holdBtn(id,key){ const el=document.getElementById(id);
   const on=e=>{ e.preventDefault(); held[key]=true; }, off=e=>{ e.preventDefault(); held[key]=false; };
   el.addEventListener('pointerdown',on); el.addEventListener('pointerup',off); el.addEventListener('pointerleave',off); el.addEventListener('pointercancel',off); }
 holdBtn('bUp','up'); holdBtn('bLeft','left'); holdBtn('bRight','right');
 document.getElementById('bMagic').addEventListener('pointerdown',e=>{ e.preventDefault(); castMagic(); });
 // ---- MOUSE steering (mouse/trackpad/pen ONLY — touch devices keep the big buttons): press-and-hold on the open scene to trot toward the cursor (steer + go, gallops if held). Buttons/arrows still work. ----
-const mouse={down:false, nx:0};
-function mouseNX(e){ mouse.nx=Math.max(-1,Math.min(1,(e.clientX/Math.max(1,innerWidth)-0.5)*2)); } // -1 (far left) .. +1 (far right)
-gl.addEventListener('pointerdown',e=>{ if(e.pointerType==='touch'||gameState!=='play'||anyOverlayOpen())return; e.preventDefault(); mouse.down=true; mouseNX(e); });
-addEventListener('pointermove',e=>{ if(mouse.down)mouseNX(e); });
-const mouseUp=()=>{ mouse.down=false; }; addEventListener('pointerup',mouseUp); addEventListener('pointercancel',mouseUp); addEventListener('blur',mouseUp); gl.addEventListener('pointerleave',mouseUp);
+const mouse={down:false, nx:0, id:null};
+function mouseNX(e){ const v=(e.clientX/Math.max(1,innerWidth)-0.5)*2; mouse.nx=Math.abs(v)<0.08?0:Math.max(-1,Math.min(1,v)); } // -1 (far left) .. +1 (far right), small dead-zone so "straight ahead" is easy
+gl.addEventListener('pointerdown',e=>{ if(gameState!=='play'||anyOverlayOpen())return; if(mouse.down&&mouse.id!==e.pointerId)return; // touch now steers too (finger on the meadow); buttons still work
+  e.preventDefault(); mouse.down=true; mouse.id=e.pointerId; mouseNX(e); });
+addEventListener('pointermove',e=>{ if(mouse.down&&e.pointerId===mouse.id)mouseNX(e); });
+const mouseUp=e=>{ if(!e||e.pointerId==null||e.pointerId===mouse.id){ mouse.down=false; mouse.id=null; } }; addEventListener('pointerup',mouseUp); addEventListener('pointercancel',mouseUp); addEventListener('blur',()=>mouseUp()); gl.addEventListener('pointerleave',e=>{ if(e.pointerType!=='touch')mouseUp(e); });
 function onResize(){ W=innerWidth;H=innerHeight; readSafe(); renderer.setSize(W,H); camera.aspect=W/H; camera.updateProjectionMatrix(); if(composer){composer.setSize(W,H); if(fxaa){const pr=renderer.getPixelRatio(); fxaa.material.uniforms.resolution.value.set(1/(W*pr),1/(H*pr));}} ui.width=W; ui.height=H; for(const b of __bubbles) b._bh=null; } // re-measure bubble heights after a rotation/resize (wrapping may change)
 addEventListener('resize',onResize);
 addEventListener('orientationchange',()=>setTimeout(onResize,150)); // iOS reports stale dims right after rotating
@@ -1165,12 +1254,15 @@ function shapePoints(shape,cx,cz,r){ const out=[];
   else if(shape.name==='star'){ for(let i=0;i<5;i++){ const a=i/5*6.28-Math.PI/2; out.push({x:cx+Math.cos(a)*r,z:cz+Math.sin(a)*r}); } }
   else { for(let i=0;i<shape.sides;i++){ const a=i/shape.sides*6.28-Math.PI/2; out.push({x:cx+Math.cos(a)*r,z:cz+Math.sin(a)*r}); } }
   return out; }
-function dropShapeMarker(shape,cx,cz,gy){ let geo;
+// one cached geometry per shape + one material per colour (shared by every marker → nothing to leak when the FIFO evicts old ones)
+const SHAPE_GEO_CACHE={}, SHAPE_MATS=[0xffe66b,0xff9ad4,0x8ad0ff,0xb38aff].map(col=>new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:0.7,transparent:true,opacity:0.5,roughness:0.6,side:THREE.DoubleSide}));
+function shapeMarkerGeo(shape){ if(SHAPE_GEO_CACHE[shape.name])return SHAPE_GEO_CACHE[shape.name]; let geo;
   if(shape.name==='circle') geo=new THREE.CircleGeometry(2.9,40);
   else { const s=new THREE.Shape(); const n=shape.name==='star'?10:shape.sides, R=3.0,r2=1.45;
     for(let i=0;i<n;i++){ const rad=shape.name==='star'?((i%2)?r2:R):R, a=i/n*6.28-Math.PI/2, px=Math.cos(a)*rad, py=Math.sin(a)*rad; if(i===0)s.moveTo(px,py); else s.lineTo(px,py); } s.closePath(); geo=new THREE.ShapeGeometry(s); }
-  const col=[0xffe66b,0xff9ad4,0x8ad0ff,0xb38aff][Math.floor(Math.random()*4)];
-  const m=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:col,emissive:col,emissiveIntensity:0.7,transparent:true,opacity:0.5,roughness:0.6,side:THREE.DoubleSide}));
+  return (SHAPE_GEO_CACHE[shape.name]=geo); }
+function dropShapeMarker(shape,cx,cz,gy){
+  const m=new THREE.Mesh(shapeMarkerGeo(shape),SHAPE_MATS[Math.floor(Math.random()*SHAPE_MATS.length)]);
   m.rotation.x=-Math.PI/2; m.position.set(cx,gy+0.07,cz); m.scale.setScalar(0.15); m.userData.grow=true;
   (zone==='gathering'?gather:(activeWorldGroup()||meadow)).add(m); shapeMarkers.push(m);
   while(shapeMarkers.length>10){ const old=shapeMarkers.shift(); if(old.parent)old.parent.remove(old); } }
@@ -1180,15 +1272,15 @@ function narrateMagicShape(shape,nFlowers){
   if(nFlowers<=eduCeiling()){ let phrase=''; for(let i=1;i<nFlowers;i++)phrase+=numWord(i)+'... '; phrase+=numWord(Math.min(nFlowers,10))+' flowers! A '+shape.name+', '+shape.attr+'.'; recordDiscovery('countedTo',null,nFlowers); learnNarrate(phrase); }
   else learnNarrate('Pretty flowers! A '+shape.name+', '+shape.attr+'.');
 }
-function castMagic(){ if(gameState!=='play')return; initAudio();
+function castMagic(){ if(gameState!=='play'||anyOverlayOpen())return; initAudio();
   const x=P.x+Math.sin(P.dir)*2, z=P.z+Math.cos(P.dir)*2, y=groundAt(x,z);
   const big=P.magic>=0.6;
-  for(let i=0;i<(big?28:8);i++) spark(x+(Math.random()-0.5)*3,y+0.5+Math.random()*2,z+(Math.random()-0.5)*3,[0xff9ad4,0xb38aff,0xffe66b,0x8ad0ff][i%4],0.5+Math.random()*0.6,2+Math.random()*3);
+  for(let i=0;i<(big?(LEVEL>=15?48:28):8);i++) spark(x+(Math.random()-0.5)*3,y+0.5+Math.random()*2,z+(Math.random()-0.5)*3,[0xff9ad4,0xb38aff,0xffe66b,0x8ad0ff][i%4],0.5+Math.random()*0.6,2+Math.random()*3);
   if(big){ const inGather=zone==='gathering';
     const teach=skillOn('colorsShapes');
     const shape=teach?MAGIC_SHAPES[shapeIdx%MAGIC_SHAPES.length]:{name:'circle',sides:0,pts:7,attr:''};
     if(teach){ shapeIdx=(shapeIdx+1)%MAGIC_SHAPES.length; try{localStorage.setItem('sparklehoof_shapeidx',String(shapeIdx));}catch(e){} }
-    const pts=shapePoints(shape,x,z,MAGIC_BIG?4.2:2.6); // bigger spell radius once unlocked at higher levels
+    const pts=shapePoints(shape,x,z,LEVEL>=15?5.6:(MAGIC_BIG?4.2:2.6)); // bigger spell radius at level 8, bigger still at 15 (the "even bigger magic" level-up)
     const wg=activeWorldGroup(); // grow magic into the current biome so it never leaks back to the meadow
     pts.forEach(p=>{ const fg=cheapFlower(p.x,p.z,0.2,groundAt(p.x,p.z)); (inGather?gather:(wg||flowers)).add(fg); grownFlowers.push(fg); });
     while(grownFlowers.length>(LOW?40:140)){ const old=grownFlowers.shift(); if(old.parent)old.parent.remove(old); } // FIFO cap (tighter on mobile)
@@ -1226,15 +1318,15 @@ function onCollect(type,pos,extra){ COUNT[type]++; if(type==='⭐')totalStars++;
   // quiet difficulty ramp: count to 3, then 5, then 10 over time (never shown; frozen if parent holds steady)
   const lvl=totalCollected<12?0:totalCollected<30?1:2; if(!SETTINGS.holdSteady && lvl>eduLevel){ eduLevel=lvl; persist(); }
   // bigger surprise unlocks (>= so a loaded/jumped total can never skip the unlock)
-  if(totalStars>=15 && !UNLOCK.rainbowMane){ unlock('rainbowMane','🦄','Rainbow Mane!'); LOOK.mane='rainbow'; buildUnicorn(); const b=makeBaby('foal',P.x+3,P.z+2); b.userData.follow=true; }
-  if(totalStars>=30 && !UNLOCK.galaxyWings){ unlock('galaxyWings','🧚','Galaxy Wings!'); }
+  if(totalStars>=15 && !UNLOCK.rainbowMane){ unlock('rainbowMane','🦄','Shimmer Mane!'); LOOK.mane='shimmer'; buildUnicorn(); persist(); earnPal('foal',P.x+3,P.z+2); } // the default mane is already rainbow, so the prize is a NEW colour-changing mane
+  if(totalStars>=30 && !UNLOCK.galaxyWings){ unlock('galaxyWings','🧚','Galaxy Wings!'); grantGalaxyWings(); }
   updateHUD();
 }
 function fanfare(){ if(!AC||!soundOn)return; [523.25,659.25,783.99,1046.5].forEach((f,i)=>note(f,0.22,'triangle',0.22,i*0.11)); }
 function givePrize(kind,pos){ const emoji=kind==='star'?'🎁':'💝', label=kind==='star'?'Star Prize!':'Heart Prize!';
   celebrate(P.x,3,P.z,3); fanfare(); showPop(emoji,label); say('milestone');
   for(let i=0;i<32;i++) spark(P.x+(Math.random()-0.5)*2.2,2.5+Math.random()*2.2,P.z+(Math.random()-0.5)*2.2,[0xffe66b,0xff7ac0,0xb38aff,0x8ad0ff][i%4],0.6+Math.random()*0.5,2+Math.random()*3);
-  if(kind==='star'){ if(babies.length<9){ const b=makeBaby(['bunny','foal','butterfly'][babies.length%3],P.x+(Math.random()*4-2),P.z+(Math.random()*4-2)); b.userData.follow=true; } }
+  if(kind==='star'){ earnPal(PAL_KINDS[EARNED_PALS.length%3],P.x+(Math.random()*4-2),P.z+(Math.random()*4-2)); }
   else { for(let i=0;i<16;i++){ const a=Math.random()*6.28,r=Math.random()*3.5; spark(P.x+Math.cos(a)*r,3+Math.random()*2,P.z+Math.sin(a)*r,0xff5fae,0.7,1+Math.random()*2); } }
 }
 function unlock(key,emoji,label){ UNLOCK[key]=true; persist(); celebrate(P.x,3,P.z,3); say('milestone'); showPop(emoji,label); buildSwatches(); }
@@ -1260,7 +1352,7 @@ function bandShimmer(){ const bands=document.querySelectorAll('#arc .band'); ban
 
 /* ---- wardrobe ---- */
 const SW={ body:[0xffffff,0xfff0a0,0xffc8ec,0xc9b3ff,0xb3e0ff,0xb6ffcf,0xffd0a0,0xffb3c8,0x7fd0ff,0xff7ac0],
-  mane:['rainbow',0xff6b6b,0xffb86b,0xffe66b,0x8ce66b,0x6bc6ff,0xb36bff,0xff9ad4,0x00d0a0,0xffffff],
+  mane:['rainbow','shimmer',0xff6b6b,0xffb86b,0xffe66b,0x8ce66b,0x6bc6ff,0xb36bff,0xff9ad4,0x00d0a0,0xffffff],
   horn:[0xffe66b,0xff9ad4,0x8ad0ff,0xb38aff,0xffffff,0x8ce66b,0xff4d6d,0x00e5ff],
   trail:['⭐','💖','🫧','🌸','🌟','✨','🌈','💫'] };
 // new swatches unlock by Sparkle Level (existing ones have no entry = available from level 1; never locks a current pick)
@@ -1268,12 +1360,13 @@ const SWMIN=new Map([['body:'+0x7fd0ff,6],['body:'+0xff7ac0,14],['mane:'+0x00d0a
 function swMinLevel(slot,val){ return SWMIN.get(slot+':'+val)||1; }
 function buildSwatches(){ [['swBody','body'],['swMane','mane'],['swHorn','horn'],['swTrail','trail']].forEach(([id,slot])=>{
   const el=document.getElementById(id); if(!el)return; el.innerHTML='';
-  SW[slot].forEach(val=>{ const sw=document.createElement('div'); const need=swMinLevel(slot,val), locked=need>LEVEL&&LOOK[slot]!==val; sw.className='sw'+(LOOK[slot]===val?' sel':'');
+  SW[slot].forEach(val=>{ const sw=document.createElement('div'); const prizeLock=(val==='shimmer'&&!UNLOCK.rainbowMane), need=swMinLevel(slot,val), locked=(need>LEVEL||prizeLock)&&LOOK[slot]!==val; sw.className='sw'+(LOOK[slot]===val?' sel':'');
     if(slot==='trail'){ sw.style.background='#fff'; sw.style.fontSize='26px'; sw.style.display='flex'; sw.style.alignItems='center'; sw.style.justifyContent='center'; sw.textContent=locked?'🔒':val; }
     else if(val==='rainbow'){ sw.style.background='linear-gradient(135deg,#ff6b6b,#ffe66b,#6bc6ff,#b36bff)'; }
+    else if(val==='shimmer'){ sw.style.background='conic-gradient(#ff6b6b,#ffe66b,#8ce66b,#6bc6ff,#b36bff,#ff9ad4,#ff6b6b)'; if(!locked){ sw.textContent='✨'; sw.style.fontSize='22px'; sw.style.display='flex'; sw.style.alignItems='center'; sw.style.justifyContent='center'; } }
     else sw.style.background='#'+val.toString(16).padStart(6,'0');
     if(locked){ sw.style.opacity='.35'; if(slot!=='trail'){ sw.textContent='🔒'; sw.style.fontSize='17px'; sw.style.display='flex'; sw.style.alignItems='center'; sw.style.justifyContent='center'; }
-      sw.addEventListener('click',()=>{ fairySay('Reach level '+numWord(need)+' to unlock this!'); note(330,0.12,'sine',0.12); }); }
+      sw.addEventListener('click',()=>{ fairySay(prizeLock?'Keep collecting stars to unlock the shimmer mane!':'Reach level '+numWord(need)+' to unlock this!'); note(330,0.12,'sine',0.12); }); }
     else sw.addEventListener('click',()=>{ LOOK[slot]=val; el.querySelectorAll('.sw').forEach(s=>s.classList.remove('sel')); sw.classList.add('sel');
       if(slot==='horn')applyHornColor(); else buildUnicorn(); P.prance=0.5; note(880,0.1,'triangle',0.16); persist(); });
     el.appendChild(sw); }); }); }
@@ -1285,15 +1378,15 @@ function updateLevelBadge(){ const el=document.getElementById('lvl'); if(!el)ret
   const pct=(LEVEL>=levelCap())?100:Math.max(0,Math.min(100,Math.round(LXP/xpToNext(LEVEL)*100)));
   el.style.background='conic-gradient(#ffd24a '+pct+'%, rgba(255,170,225,.45) 0)'; }
 const LEVEL_UNLOCKS={
-  2:{say:'A new baby friend came to play!',apply:()=>{ const b=makeBaby(['bunny','foal','butterfly'][Math.floor(Math.random()*3)],P.x+2,P.z+2); if(b)b.userData.follow=true; }},
+  2:{say:'A new baby friend came to play!',apply:()=>{ earnPal(PAL_KINDS[Math.floor(Math.random()*3)],P.x+2,P.z+2); }},
   3:{say:'a ruby horn sparkle in your dress-up!'}, 4:{say:'a rainbow trail in your dress-up!'},
-  5:{say:'a beautiful Rainbow Mane!',apply:()=>{ UNLOCK.rainbowMane=true; LOOK.mane='rainbow'; buildUnicorn(); persist(); }},
+  5:{say:'a magic Shimmer Mane that changes colors!',apply:()=>{ if(!UNLOCK.rainbowMane){ UNLOCK.rainbowMane=true; LOOK.mane='shimmer'; buildUnicorn(); persist(); } }},
   6:{say:'a sky-blue coat color in dress-up!'},
-  7:{say:'another little friend to follow you!',apply:()=>{ const b=makeBaby('bunny',P.x-2,P.z+2); if(b)b.userData.follow=true; }},
+  7:{say:'another little friend to follow you!',apply:()=>{ earnPal('bunny',P.x-2,P.z+2); }},
   8:{say:'BIGGER magic spells!',apply:()=>{ MAGIC_BIG=true; }}, 9:{say:'a shooting-comet trail in dress-up!'},
-  10:{say:'sparkly Galaxy Wings!',apply:()=>{ UNLOCK.galaxyWings=true; persist(); }},
+  10:{say:'sparkly Galaxy Wings!',apply:()=>{ if(!UNLOCK.galaxyWings) grantGalaxyWings(); }},
   11:{say:'a teal mane color in dress-up!'}, 12:{say:'an aqua horn color in dress-up!'},
-  13:{say:'a new friend to follow you!',apply:()=>{ const b=makeBaby('foal',P.x+2,P.z-2); if(b)b.userData.follow=true; }},
+  13:{say:'a new friend to follow you!',apply:()=>{ earnPal('foal',P.x+2,P.z-2); }},
   14:{say:'a rosy coat color in dress-up!'}, 15:{say:'even bigger magic!',apply:()=>{ MAGIC_BIG=true; }},
   18:{say:'a fluffy cloud mane in dress-up!'}, 20:{say:'You are a Shining Star! Soar high!'} };
 function onLevelUp(L){ const u=LEVEL_UNLOCKS[L], wk=WORLD_AT_LEVEL[L], wcfg=wk?WORLD_BY_KEY[wk]:null;
@@ -1315,7 +1408,7 @@ function clampLevelToCap(){ const cap=levelCap(); if(LEVEL>cap)LEVEL=cap; if(LEV
 document.getElementById('tWardrobe').addEventListener('click',()=>{ buildSwatches(); document.getElementById('wardrobe').style.display='flex'; note(660,0.1,'triangle',0.16); }); // rebuild on open so level-gated locks are always current
 document.getElementById('wclose').addEventListener('click',()=>{ document.getElementById('wardrobe').style.display='none'; note(784,0.12,'triangle',0.18); });
 function syncMuteIcon(){ const el=document.getElementById('tMute'); if(el)el.textContent=soundOn?'🔊':'🔇'; }
-document.getElementById('tMute').addEventListener('click',()=>{ soundOn=!soundOn; syncMuteIcon(); setPadGain(); if(soundOn)note(660,0.1,'triangle',0.16); else stopSpeech(); });
+document.getElementById('tMute').addEventListener('click',()=>{ soundOn=!soundOn; try{ localStorage.setItem('sparklehoof_sound',soundOn?'1':'0'); }catch(e){} syncMuteIcon(); setPadGain(); if(soundOn)note(660,0.1,'triangle',0.16); else stopSpeech(); if(CH.bubble&&CH.round) refreshChallengeText(); });
 function buildLocket(){ const el=document.getElementById('lkGrid'); if(!el)return; el.innerHTML='';
   WORD_BANK.forEach(w=>{ const got=metWords.has(w); const chip=document.createElement('div'); chip.className='sw'; chip.style.background='#fff'; if(!got)chip.style.opacity='.32';
     chip.textContent=got?w.toUpperCase():'💗';
@@ -1338,7 +1431,7 @@ const BADGES=[
   {e:'🔷',l:'Shape Maker',got:()=>(DISCOVERED.shapes||[]).length>=2},
   {e:'🔶',l:'Shape Master',got:()=>(DISCOVERED.shapes||[]).length>=4},
   {e:'💗',l:'Feelings Friend',got:()=>(DISCOVERED.feelings||[]).length>=3},
-  {e:'🌈',l:'Rainbow Mane',got:()=>!!UNLOCK.rainbowMane},
+  {e:'🌈',l:'Shimmer Mane',got:()=>!!UNLOCK.rainbowMane},
   {e:'🧚',l:'Galaxy Wings',got:()=>!!UNLOCK.galaxyWings},
   {e:'🐰',l:'Animal Friends',got:()=>babies.length>=7},
   {e:'🎉',l:'Party Pal',got:()=>!!DISCOVERED.metParty},
@@ -1418,7 +1511,7 @@ function buildParentPanel(){ const sk=document.getElementById('pskills'); sk.inn
   const wm=[0,15,25,40]; pSeg('pWind',['Off','15m','25m','40m'],Math.max(0,wm.indexOf(SETTINGS.windDownMin)),i=>{ SETTINGS.windDownMin=wm[i]; persistSettings(); });
   renderDiscovered(); }
 function openParentPanel(){ buildParentPanel(); document.getElementById('parent').style.display='flex'; note(523,0.12,'triangle',0.16); }
-function resetProfile(){ try{ ['sparklehoof_counts','sparklehoof_unlock','sparklehoof_look','sparklehoof_edulevel','sparklehoof_settings','sparklehoof_discovered','sparklehoof_words','sparklehoof_letters','sparklehoof_shapeidx','sparklehoof_meadow','sparklehoof_mastery','sparklehoof_level','sparklehoof_worlds'].forEach(k=>localStorage.removeItem(k)); }catch(e){} location.reload(); }
+function resetProfile(){ try{ ['sparklehoof_counts','sparklehoof_unlock','sparklehoof_look','sparklehoof_edulevel','sparklehoof_settings','sparklehoof_discovered','sparklehoof_words','sparklehoof_letters','sparklehoof_shapeidx','sparklehoof_meadow','sparklehoof_mastery','sparklehoof_level','sparklehoof_worlds','sparklehoof_pals'].forEach(k=>localStorage.removeItem(k)); }catch(e){} location.reload(); }
 document.getElementById('pclose').addEventListener('click',()=>{ document.getElementById('parent').style.display='none'; note(784,0.12,'triangle',0.18); });
 let __resetArm=0; document.getElementById('presetbtn').addEventListener('click',function(){ const now=performance.now();
   if(now-__resetArm<3000){ resetProfile(); } else { __resetArm=now; this.textContent='Tap again to clear ✓'; setTimeout(()=>{ this.textContent='Start fresh (clear all progress)'; },3000); } });
@@ -1430,7 +1523,7 @@ let magicStar=null, magicStarT=9, gatherBuilt=false, returnPortal=null;
 function spawnMagicStar(){ if(magicStar||zone!=='meadow')return;
   const a=Math.random()*6.28,d=42+Math.random()*60,x=Math.cos(a)*d,z=Math.sin(a)*d,y=groundH(x,z)+2.2;
   const m=new THREE.Mesh(STAR_GEO,new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xff6bd0,emissiveIntensity:2.6,roughness:0.2,metalness:0.2}));
-  m.scale.setScalar(2.1); m.position.set(x,y,z); m.userData={base:y,ph:0,light:new THREE.PointLight(0xff6bd0,1.8,22)};
+  m.scale.setScalar(2.1); m.position.set(x,y,z); m.userData={base:y,ph:0,light:new THREE.PointLight(0xff6bd0,1.8,22),born:performance.now()};
   m.add(m.userData.light); if(LOW){ const sg=glowSprite(0xff8ad8,1.5,0.7); m.add(sg); } meadow.add(m); magicStar=m; // mobile glow halo so the gateway star still pops without bloom
   setTimeout(()=>fairySay('Find the rainbow star to visit all your friends!'),200); }
 function buildGatherUnicorn(def,x,z){ const g=buildUnicornModel(def); g.position.set(x,GATHER.y,z); g.scale.setScalar(0.96);
@@ -1460,7 +1553,7 @@ function enterGathering(){ if(zone==='gathering')return; buildGathering();
   endQuest(); if(mood.bubble){ mood.bubble.remove(); mood.bubble=null; } if(CH.bubble){ CH.bubble.remove(); CH.bubble=null; CH.round=null; } if(stars)stars.visible=false; if(weather){ scene.remove(weather.pts); weather=null; }
   zone='gathering'; meadow.visible=false; gather.visible=true; clearCollectibles();
   P.x=GATHER.x; P.z=GATHER.z+GATHER.r-20; P.dir=Math.PI; P.speed=0; cam.yaw=P.dir;
-  scene.background.set(0xffd9f0); topUpCollectibles();
+  scene.background.set(0xffd9f0); if(scene.fog)scene.fog.color.set(0xffe4f4); sun.intensity=1.5; hemi.intensity=1.05; sun.color.setHex(0xfff4e0); topUpCollectibles(); // the party is always sunny
   DISCOVERED.metParty=true; persistDiscovered();
   fanfare(); say('milestone'); showPop('🎉','Friend Party!'); setTimeout(()=>fairySay('A surprise party with all your unicorn friends!'),350); }
 function returnToMeadow(){ if(zone==='meadow')return; const from=zone; zone='meadow'; gather.visible=false; school.visible=false; WORLDS.forEach(o=>{ if(o.group)o.group.visible=false; }); meadow.visible=true; clouds.forEach(c=>c.visible=true); clearCollectibles();
@@ -1542,7 +1635,7 @@ function enterSchool(){ if(zone==='school')return; buildSchoolInterior();
   if(stars)stars.visible=false; if(weather){ scene.remove(weather.pts); weather=null; } if(magicStar){ meadow.remove(magicStar); magicStar=null; }
   zone='school'; meadow.visible=false; gather.visible=false; school.visible=true; clearCollectibles(); setBoardDefault();
   P.x=SCHOOL_IN.x; P.z=SCHOOL_IN.z; P.dir=Math.PI; P.speed=0; cam.yaw=P.dir; // on the rug, facing the chalkboard
-  scene.background.set(0xf6e4d6); if(scene.fog) scene.fog.color.set(0xf6e4d6);
+  scene.background.set(0xf6e4d6); if(scene.fog) scene.fog.color.set(0xf6e4d6); sun.intensity=1.35; hemi.intensity=1.05; sun.color.setHex(0xfff4e0); // indoors is always daytime
   chInvite.t=0; chInvite.next=2.4; // first lesson starts soon
   DISCOVERED.visitedSchool=true; if(typeof persistDiscovered==='function')persistDiscovered();
   chime(1); fairySay('Welcome inside Sparkle School! Let us play counting and word games!'); }
@@ -1722,8 +1815,9 @@ function saveMeadow(){ try{ const f=grownFlowers.filter(x=>x.parent===flowers).s
   const r=sky.filter(s=>s.g.parent===scene).slice(-12).map(s=>[Math.round(s.g.position.x),Math.round(s.g.position.z),+s.g.rotation.y.toFixed(2)]);
   localStorage.setItem('sparklehoof_meadow',JSON.stringify({f:f,r:r,tod:+tod.toFixed(3)})); }catch(e){} }
 function restoreMeadow(){ try{ const d=JSON.parse(localStorage.getItem('sparklehoof_meadow')||'null'); if(!d)return; if(typeof d.tod==='number')tod=d.tod;
-  if(d.f)d.f.forEach(p=>{ const fg=flowerGroup(p[0],p[1],1); flowers.add(fg); });
-  if(d.r)d.r.forEach(p=>{ const g=buildRainbowGroup(); g.position.set(p[0],groundH(p[0],p[1])+0.5,p[1]); g.rotation.y=p[2]||0; scene.add(g); }); }catch(e){} }
+  // restored magic re-joins the live FIFO lists, so the NEXT save keeps it (it used to be dropped → "my meadow" faded after two reloads) — and uses the 1-draw-call flower
+  if(d.f)d.f.forEach(p=>{ const fg=cheapFlower(p[0],p[1],1); flowers.add(fg); grownFlowers.push(fg); });
+  if(d.r)d.r.forEach(p=>{ const g=buildRainbowGroup(); g.position.set(p[0],groundH(p[0],p[1])+0.5,p[1]); g.rotation.y=p[2]||0; scene.add(g); sky.push({g,t:0}); }); }catch(e){} }
 let sessionStart=0, windDownFired=false;
 function checkSleepy(){ const mins=SETTINGS.windDownMin|0; if(!mins||windDownFired||zone!=='meadow')return;
   if((performance.now()-sessionStart)/60000>=mins){ windDownFired=true; windDownBias=1; learnNarrate('The unicorns are getting sleepy. Want to watch the sunset?'); if(AC&&mg){ try{ mg.gain.setTargetAtTime(0.16,AC.currentTime,2.5);}catch(e){} } } }
@@ -1764,7 +1858,7 @@ function update(dt){
   const gy=groundAt(P.x,P.z); const hop=P.prance>0?Math.abs(Math.sin((1-P.prance/0.55)*6.28))*0.5:0;
   let flyY=0, flyTilt=0, danceY=0, danceSway=0;
   if(FLY.dur>0){ FLY.t+=dt; const rise=FLY.grand?9:5.5; const e=Math.max(0,Math.min(FLY.t/1.1,(FLY.dur-FLY.t)/1.1,1)), se=e*e*(3-2*e); flyY=rise*se+Math.sin(FLY.t*2.0)*0.45; flyTilt=-0.16*se;
-    if(Math.random()<0.85) spark(P.x-Math.sin(P.dir)*1.6, gy+flyY+2+Math.random()*1.8, P.z-Math.cos(P.dir)*1.6, [0xff6b6b,0xffd24a,0x8ad0ff,0xb38aff,0xff9ad4][Math.floor(Math.random()*5)],0.6,0.4);
+    if(Math.random()<0.85){ const fc=UNLOCK.galaxyWings?[0x8a5cff,0x4fc3ff,0xff6bd0,0xffffff,0xb6a0ff]:[0xff6b6b,0xffd24a,0x8ad0ff,0xb38aff,0xff9ad4]; spark(P.x-Math.sin(P.dir)*1.6, gy+flyY+2+Math.random()*1.8, P.z-Math.cos(P.dir)*1.6, fc[Math.floor(Math.random()*5)],0.6,0.4); }
     if(FLY.t>=FLY.dur){ FLY.dur=0; fairySay('Wheee! What a flight!'); } }
   const partying=(zone==='gathering');
   if(partying){ const db=performance.now()*0.004; danceY=Math.abs(Math.sin(db*2))*0.55; danceSway=Math.sin(db*1.4)*0.2; }
@@ -1774,6 +1868,7 @@ function update(dt){
   const gait=performance.now()*0.012*(1+Math.max(0,P.speed-9)*0.06); const ms=Math.min(1,Math.abs(P.speed)/9); // legs pump faster at a gallop
   if(uni.userData.legs) uni.userData.legs.forEach((l,i)=>{ l.rotation.x = FLY.dur>0 ? 0.45 : (partying ? Math.sin(performance.now()*0.008+i*1.6)*0.6 : Math.sin(gait+i*1.6)*0.5*ms); });
   if(hornMesh){ hornMesh.material.emissiveIntensity=2.0+Math.sin(performance.now()*0.005)*0.4; }
+  if(maneShimmer){ const ht=performance.now()*0.00011; for(let k=0;k<maneParts.length;k++){ const m=maneParts[k].material; m.color.setHSL((ht+k*0.045)%1,0.85,0.66); m.emissive.copy(m.color); } } // Shimmer Mane: colours flow down the mane
   // idle life: tail sway, ear twitch, occasional blink (player only)
   if(uni.userData.tail) uni.userData.tail.rotation.set(Math.sin(performance.now()*0.0018)*0.16, 0, Math.sin(performance.now()*0.0026)*0.08);
   if(uni.userData.ears) uni.userData.ears.forEach((e,i)=>{ e.rotation.z=0.12+Math.sin(performance.now()*0.004+i*2.1)*0.06; });
@@ -1850,7 +1945,7 @@ function update(dt){
   // grown flowers + magic shape-beds pop in
   for(const f of grownFlowers){ if(f.scale.x<1){ f.scale.addScalar(dt*3); if(f.scale.x>1)f.scale.setScalar(1); } }
   // ---- graphics polish (build 24): horn charge glow + cast-ring/level-pillar fades + pond shimmer + drifting fireflies (all cheap, no post-FX) ----
-  if(hornGlowSprite){ const mg=P.magic||0; hornGlowSprite.material.opacity=0.28+mg*0.5; hornGlowSprite.scale.setScalar(1.2+mg*0.9+Math.sin(performance.now()*0.005)*0.12*mg); } // horn brightens as the big spell charges
+  if(hornGlowSprite){ const mg=P.magic||0; hornGlowSprite.material.opacity=0.16+mg*0.3; hornGlowSprite.scale.setScalar(0.85+mg*0.55+Math.sin(performance.now()*0.005)*0.08*mg); } // gentle: a full-strength halo used to swallow the unicorn's whole head on phones // horn brightens as the big spell charges
   for(const fxm of FX){ if(fxm.visible){ fxm.userData.t-=dt; const k=fxm.userData.t/fxm.userData.dur; if(k<=0){ fxm.visible=false; } else { fxm.material.opacity=k*fxm.userData.maxO; if(fxm.userData.ring){ const s=0.3+(1-k)*5.5; fxm.scale.setScalar(s); fxm.material.color.setHSL((0.82+(1-k)*0.22)%1,0.8,0.62); } else { fxm.position.y=fxm.userData.baseY+(1-k)*2.0; const r=1+(1-k)*0.5; fxm.scale.set(r,1,r); } } } }
   if(pondWater && zone==='meadow'){ const tt=performance.now()*0.001; pondWater.position.y=pondWater.userData.baseY+Math.sin(tt*0.6)*0.03; pondWater.rotation.z+=dt*0.04; pondWater.material.emissiveIntensity=0.05+Math.sin(tt*1.3)*0.045; }
   if(fireflies && zone==='meadow'){ const arr=fireflies.geometry.attributes.position.array, b=fireflies.userData.base, ph=fireflies.userData.ph, nf=performance.now()*0.001, N=fireflies.userData.n;
@@ -1871,13 +1966,28 @@ function update(dt){
   const cd=14+Math.min(4,Math.max(0,P.speed-9)*0.5), ch=7; camera.position.set(P.x-Math.sin(cam.yaw)*cd, gy+ch+flyY*0.5, P.z-Math.cos(cam.yaw)*cd); // pull back a bit when galloping
   camera.lookAt(P.x, gy+2.5+flyY, P.z);
   sun.target.position.set(P.x,gy,P.z); sun.position.set(P.x+50,gy+90,P.z+30);
-  projectBubbles();
+  projectBubbles(); updateGuide();
   updateSky(dt); updateWeather(dt); updateCritters(dt); checkSleepy();
 
   // idle nudge
-  if(!held.up&&!held.left&&!held.right){ idleT+=dt; if(idleT>10){ idleT=0; say('idle'); } } else idleT=0;
+  const busy=steering||anyOverlayOpen()||speaking||QUEST.active||CH.bubble||mood.bubble||zone==='school';
+  if(!held.up&&!held.left&&!held.right&&!busy){ idleT+=dt; if(idleT>16){ idleT=0; say('idle'); } } else idleT=0;
 }
 let idleT=0, blinkT=3, blinkP=0;
+
+/* ---- off-screen guide: when the quest friend (or the rainbow star) is out of view, a bubble at the screen edge points the way ---- */
+const guideEl=document.getElementById('guide'), guideIco=guideEl.querySelector('.gb'), guidePt=guideEl.querySelector('.gp'), __gv=new THREE.Vector3(); let guideShown=false, guideIcon='';
+function guideTarget(){ if(zone!=='meadow'||anyOverlayOpen()||CH.bubble||mood.bubble)return null;
+  const q=QUEST.active; if(q&&q.pal&&(q.kind!=='bring'||q.ready)) return {p:q.pal.position,dy:2.4,icon:PAL_E[q.pal.userData.kind]||'🦄'}; // bring-quests point the way once the basket is full
+  if(magicStar){ const age=(performance.now()-(magicStar.userData.born||0))/1000; if(age<15||(age>60&&age%60<10)) return {p:magicStar.position,dy:0,icon:'🌟'}; } // the star nudges now and then, not nonstop
+  return null; }
+function updateGuide(){ const t=guideTarget(); if(!t){ if(guideShown){ guideEl.style.display='none'; guideShown=false; } return; }
+  __gv.set(t.p.x,t.p.y+t.dy,t.p.z).project(camera); let x=__gv.x, y=__gv.y; const behind=__gv.z>1; if(behind){ x=-x; y=-y; if(Math.hypot(x,y)<0.05){ x=0; y=-1; } }
+  if(!behind && Math.abs(x)<0.88 && Math.abs(y)<0.82){ if(guideShown){ guideEl.style.display='none'; guideShown=false; } return; } // it's on screen → its own bubble shows the way
+  const ang=Math.atan2(-y*H,x*W), hx=W/2-44, hyT=Math.max(30,H/2-SAFE_T-130), hyB=Math.max(30,H/2-SAFE_B-(H<=520?190:265)); // keep clear of the top HUD and the bottom buttons
+  const k=Math.min(hx/Math.max(1e-6,Math.abs(Math.cos(ang))), (Math.sin(ang)<0?hyT:hyB)/Math.max(1e-6,Math.abs(Math.sin(ang))));
+  guideEl.style.transform='translate('+Math.round(W/2+Math.cos(ang)*k)+'px,'+Math.round(H/2+Math.sin(ang)*k)+'px)'; guidePt.style.transform='rotate('+ang.toFixed(3)+'rad) translateX(24px)';
+  if(guideIcon!==t.icon){ guideIco.textContent=t.icon; guideIcon=t.icon; } if(!guideShown){ guideEl.style.display='block'; guideShown=true; } }
 
 /* ---- magic meter ring (2D) ---- */
 const mr=document.getElementById('magicring'), mrx=mr.getContext('2d');
@@ -1901,7 +2011,7 @@ function loop(now){ if(LOW && now-capLast<15){ requestAnimationFrame(loop); retu
    START
    ============================================================ */
 function startGame(){ initAudio(); if(AC&&AC.state==='suspended')AC.resume();
-  buildUnicorn(); applyHornColor(); buildHUD(); buildSwatches(); updateHUD(); buildSoundGarden();
+  buildUnicorn(); applyHornColor(); buildHUD(); buildSwatches(); updateHUD(); buildSoundGarden(); respawnEarnedPals(); syncMuteIcon();
   restoreMeadow(); buildStars(); buildCritters(); buildFireflies(); startAmbientPad(); sessionStart=performance.now(); windDownFired=false; windDownBias=0;
   for(let i=0;i<26;i++) spawnCollectible();
   ['arc','jars','tools','lvl'].forEach(id=>{ const e=document.getElementById(id); if(e)e.style.display='flex'; }); clampLevelToCap(); updateLevelBadge();
@@ -1915,7 +2025,7 @@ document.getElementById('tplay').addEventListener('click',startGame);
 ui.width=W; ui.height=H;
 if(useComposer) buildComposer(); // not built at all on LOW — no shader compile stall either
 document.getElementById('loading').style.display='none';
-console.log('Sparklehoof build 24 — graphics polish (glow treasures/cast ring/level pillar/fireflies/pond) + no-zoom + PWA'); // build marker (confirm cache is fresh)
+console.log('Sparklehoof build 25 — touch steering, guide bubble, read-along quests, real unlocks, saved friends, leak + layout fixes'); // build marker (confirm cache is fresh)
 requestAnimationFrame(loop);
 window.__SP={P,COUNT,startGame,collectibles,castMagic,friends,babies,gatherFriends,
   onCollect,givePrize,spawnMagicStar,enterGathering,returnToMeadow,enterSchool,exitSchool,SCHOOL_DOOR,SCHOOL_IN,ringBell,setBoardQuestion,
@@ -1937,7 +2047,7 @@ Object.assign(window.__SP,{ openParentPanel, resetProfile, buildParentPanel, per
   startChallenge, offerRound, onTilePick, CHALLENGE_DEFS, CH, DISCOVERED,
   MASTERY, recordMastery, numTier:()=>numTier(), litTier:()=>litTier(), numCeiling:()=>numCeiling(),
   forceHigh:()=>{ AMBIENCE.low=false; buildStars(); buildCritters(); }, startWeather });
-Object.assign(window.__SP,{ enterWorld:(k)=>enterWorld(k), openWorldMap:()=>openWorldMap(), buildWorldMap:()=>buildWorldMap(), WORLDS,
+Object.assign(window.__SP,{ LOOK, UNLOCK, EARNED_PALS, guideShown:()=>guideShown, maneShimmer:()=>maneShimmer, flyWings:()=>flyWings, enterWorld:(k)=>enterWorld(k), openWorldMap:()=>openWorldMap(), buildWorldMap:()=>buildWorldMap(), WORLDS,
   worldState:()=>({zone:zone, unlocked:[...UNLOCKED_WORLDS], visited:(DISCOVERED.worldsVisited||[]).slice(), built:WORLDS.filter(w=>w.built).map(w=>w.key)}),
   setSparkleLevel:(n)=>{ LEVEL=Math.max(1,Math.min(levelCap(),n|0)); LXP=0; MAGIC_BIG=LEVEL>=8; WORLDS.forEach(w=>{ if(w.home||w.req<=LEVEL)UNLOCKED_WORLDS.add(w.key); }); persistLevel(); persistWorlds(); updateLevelBadge(); } });
 </script>
