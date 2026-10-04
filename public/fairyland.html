@@ -178,6 +178,18 @@
   #tplay:active{transform:translateY(5px);box-shadow:0 2px 0 #b83f8c;}
   #loading{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#ffd9f0;color:#c14d9e;font-size:22px;text-align:center;padding:24px;line-height:1.5;}
 
+  /* 📸 photo button (sits above ✨), camera flash, album + viewer */
+  .photo{width:64px;height:64px;font-size:30px;border-width:4px;background:radial-gradient(circle at 38% 32%,#fff,#d4f0ff 70%,#8ad0ff);color:#2a6a9a;}
+  #bPhoto{right:calc(66px + var(--sar));bottom:calc(198px + var(--sab));}
+  #flash{position:fixed;inset:0;z-index:36;background:#fff;opacity:0;pointer-events:none;transition:opacity .35s;}
+  #flash.on{opacity:.85;transition:none;}
+  #jphotos{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:380px;margin:6px auto 10px;}
+  #jphotos .jph{width:84px;height:60px;border-radius:10px;object-fit:cover;border:3px solid #fff;box-shadow:0 2px 7px rgba(180,80,160,.3);cursor:pointer;}
+  #jphotos .jphh{width:100%;font-weight:800;color:#c14d9e;font-size:15px;}
+  #photoView{position:fixed;inset:0;z-index:33;display:none;align-items:center;justify-content:center;background:rgba(60,30,80,.6);backdrop-filter:blur(3px);}
+  #pvcard{max-width:94vw;max-height:92vh;display:flex;flex-direction:column;align-items:center;gap:10px;}
+  #pvimg{max-width:94vw;max-height:74vh;border-radius:16px;border:6px solid #fff;box-shadow:0 12px 40px rgba(0,0,0,.35);-webkit-touch-callout:default;}
+  #pvclose{width:72px;height:72px;border-radius:50%;font-size:40px;line-height:62px;text-align:center;background:radial-gradient(circle at 38% 32%,#fff,#b6ffcf 70%,#5fe08a);border:5px solid #fff;cursor:pointer;}
   /* off-screen guide: a bobbing bubble at the screen edge pointing at a quest friend / the rainbow star */
   #guide{position:fixed;left:0;top:0;z-index:13;width:64px;height:64px;margin:-32px 0 0 -32px;display:none;pointer-events:none;}
   #guide .gb{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 38% 32%,#fff,#ffe6f6 70%,#ffc2e6);border:4px solid #fff;
@@ -197,6 +209,7 @@
     .move{width:84px;height:84px;font-size:34px;} .magic,#magicring{width:104px;height:104px;} .magic{font-size:46px;}
     #bLeft{left:calc(16px + var(--sal));bottom:calc(20px + var(--sab));} #bRight{left:calc(176px + var(--sal));bottom:calc(20px + var(--sab));} #bUp{left:calc(96px + var(--sal));bottom:calc(100px + var(--sab));}
     #bMagic,#magicring{right:calc(22px + var(--sar));bottom:calc(24px + var(--sab));}
+    .photo{width:56px;height:56px;font-size:26px;} #bPhoto{right:calc(46px + var(--sar));bottom:calc(140px + var(--sab));}
   }
   @media (max-width:725px){ /* portrait phone: tools become a column on the right, arc tucks under the jars, controls shrink so ✨ never covers ➡️ */
     .jar{width:48px;height:58px;} .jar .ico{font-size:20px;} .jar .cnt{font-size:12px;} #jars{gap:6px;}
@@ -206,6 +219,7 @@
     .move{width:84px;height:84px;font-size:34px;} .magic,#magicring{width:104px;height:104px;} .magic{font-size:46px;}
     #bLeft{left:calc(12px + var(--sal));bottom:calc(36px + var(--sab));} #bRight{left:calc(108px + var(--sal));bottom:calc(36px + var(--sab));} #bUp{left:calc(60px + var(--sal));bottom:calc(124px + var(--sab));}
     #bMagic,#magicring{right:calc(16px + var(--sar));bottom:calc(36px + var(--sab));}
+    .photo{width:56px;height:56px;font-size:26px;} #bPhoto{right:calc(40px + var(--sar));bottom:calc(152px + var(--sab));}
   }
   @media (max-width:725px) and (max-height:520px){ /* small phone held sideways (e.g. iPhone SE): one compact row, no column clashing with ✨ */
     .jar{width:44px;height:52px;} .jar .ico{font-size:18px;}
@@ -213,6 +227,7 @@
     #arc{top:calc(66px + var(--sat));width:194px;} #lvl{left:calc(220px + var(--sal));top:calc(12px + var(--sat));width:44px;height:44px;}
     #bLeft{left:calc(16px + var(--sal));bottom:calc(20px + var(--sab));} #bRight{left:calc(176px + var(--sal));bottom:calc(20px + var(--sab));} #bUp{left:calc(96px + var(--sal));bottom:calc(100px + var(--sab));}
     #bMagic,#magicring{right:calc(22px + var(--sar));bottom:calc(24px + var(--sab));}
+    #bPhoto{right:calc(46px + var(--sar));bottom:calc(140px + var(--sab));}
   }
 </style>
 </head>
@@ -240,6 +255,8 @@
 <div class="big move" id="bRight" style="display:none">➡️</div>
 <canvas id="magicring" width="128" height="128" style="display:none"></canvas>
 <div class="big magic" id="bMagic" style="display:none">✨</div>
+<div class="big photo" id="bPhoto" style="display:none" title="Take a photo">📸</div>
+<div id="flash"></div>
 
 <div id="wardrobe">
   <div id="wcard">
@@ -256,7 +273,8 @@
 
 <div id="locket"><div id="lkcard"><h2>💝 My Word Locket 💝</h2><div id="lkGrid"></div><div id="lkclose">✓</div></div></div>
 
-<div id="journey"><div id="jcard"><h2>🌈 My Magical Journey 🌈</h2><div id="jstats"></div><div id="jpath"></div><div id="jbadges"></div><div id="jclose" style="margin-top:14px">✓</div></div></div>
+<div id="journey"><div id="jcard"><h2>🌈 My Magical Journey 🌈</h2><div id="jstats"></div><div id="jpath"></div><div id="jphotos"></div><div id="jbadges"></div><div id="jclose" style="margin-top:14px">✓</div></div></div>
+<div id="photoView"><div id="pvcard"><img id="pvimg" alt="A photo from the meadow"><div id="pvclose">✓</div></div></div>
 
 <div id="worldMap"><div id="wmcard"><h2>🗺️ Sparkle Map 🗺️</h2><div id="wmsub"></div><div id="wmList"></div><div id="wmclose">✓</div></div></div>
 
@@ -828,7 +846,9 @@ function updateSoundGarden(dt){ if(zone!=='meadow'||!skillOn('letters'))return; 
 const QUEST={ active:null, t:0, next:30+Math.random()*22 };
 function questMax(){ return [3,5,6][Math.min(2,effLevel())]; }
 function questPal(){ const pals=[]; for(const f of friends) pals.push(f); for(const b of babies) pals.push(b); return pals.length?pals[Math.floor(Math.random()*pals.length)]:null; }
+function plural(n,w){ return n===1?w:w+'s'; } // "one heart", "two hearts"
 function startQuest(){ if(QUEST.active||zone!=='meadow'||anyOverlayOpen())return; if(!(skillOn('counting')||skillOn('feelings')))return;
+  if(friends.length && skillOn('counting') && Math.random()<0.22){ startSeek(); return; } // HIDE & SEEK with a unicorn friend
   const pal=questPal(); if(!pal)return; const r=Math.random(); let q=null;
   if(r<0.34 && skillOn('feelings')){ q={kind:'cuddle',pal:pal,icon:'💗'}; }
   else if(r<0.66 && skillOn('counting') && (COUNT['💖']>=2||COUNT['🌸']>=2)){ const type=(COUNT['💖']>=COUNT['🌸'])?'💖':'🌸'; const give=Math.min(COUNT[type],1+Math.floor(Math.random()*Math.min(3,questMax()-1))); q={kind:'share',pal:pal,type:type,give:Math.max(1,give),icon:type}; }
@@ -836,18 +856,33 @@ function startQuest(){ if(QUEST.active||zone!=='meadow'||anyOverlayOpen())return
   else { q={kind:'cuddle',pal:pal,icon:'💗'}; }
   const anchor=v=>v.set(q.pal.position.x,q.pal.position.y+3.6,q.pal.position.z);
   if(q.kind==='bring'){ q.bubble=makeThoughtBubble(anchor,{icon:q.icon,dots:q.need}); learnNarrate('Can you bring me '+EDU_NUM[q.need]+' '+EDU_NAME[q.type]+'s?'); }
-  else if(q.kind==='share'){ q.bubble=makeThoughtBubble(anchor,{icon:q.icon,dots:q.give}); learnNarrate('Will you share '+EDU_NUM[q.give]+' '+EDU_NAME[q.type]+'s with me?'); }
+  else if(q.kind==='share'){ q.bubble=makeThoughtBubble(anchor,{icon:q.icon,dots:q.give}); learnNarrate('Will you share '+EDU_NUM[q.give]+' '+plural(q.give,EDU_NAME[q.type])+' with me?'); }
   else { q.bubble=makeThoughtBubble(anchor,{icon:'💗'}); learnNarrate('I would love a cuddle!');
     for(let i=0;i<10;i++){ const aa=i/10*6.28; spark(q.pal.position.x+Math.cos(aa)*1.5,q.pal.position.y+2.2,q.pal.position.z+Math.sin(aa)*1.5,0xff9ad4,0.5,1.4); } } // visible cue (works without sound)
   q.born=performance.now(); QUEST.active=q; }
 function fillQuestDot(type){ const q=QUEST.active; if(!q||q.kind!=='bring'||q.type!==type||q.got>=q.need)return null; // DATA only; returns the line for the caller to voice (or skip on a prize)
   q.got++; if(q.bubble&&q.bubble.dotEls[q.got-1]) q.bubble.dotEls[q.got-1].classList.add('on'); recordDiscovery('countedTo',null,q.got); q.born=performance.now(); // refresh expiry while actively collecting
   if(q.got<q.need) return numWord(q.got)+'!'; q.ready=true; return 'You have '+numWord(q.need)+'! Take them to your friend!'; }
-function endQuest(){ const q=QUEST.active; if(q&&q.bubble)q.bubble.remove(); QUEST.active=null; QUEST.t=0; QUEST.next=34+Math.random()*26; }
+function endQuest(){ const q=QUEST.active; if(q&&q.bubble)q.bubble.remove(); if(q&&q.pal&&q.pal.userData)q.pal.userData.hiding=false; QUEST.active=null; QUEST.t=0; QUEST.next=34+Math.random()*26; }
+/* ---- HIDE & SEEK: a friend poofs away to hide while Twinkle counts to ten; sparkles + a giggle (and later the guide bubble) help the child find them ---- */
+function startSeek(){ const pal=friends[Math.floor(Math.random()*friends.length)], name=pal.userData.def.name;
+  const q={kind:'seek',pal:pal,icon:'🙈',phase:'count',t:0,giggle:0}; pal.userData.hiding=true;
+  q.bubble=makeThoughtBubble(v=>v.set(uni.position.x,uni.position.y+5.6,uni.position.z),{icon:'🙈'});
+  for(let i=0;i<16;i++) spark(pal.position.x+(Math.random()-0.5)*2,pal.position.y+1+Math.random()*2,pal.position.z+(Math.random()-0.5)*2,[0xff9ad4,0xffe66b,0xb38aff][i%3],0.7,2.5); // poof!
+  let hx=0,hz=0; for(let t=0;t<30;t++){ const a=Math.random()*6.28,d=34+Math.random()*34; hx=P.x+Math.cos(a)*d; hz=P.z+Math.sin(a)*d; if(Math.abs(hx)<MAP-14&&Math.abs(hz)<MAP-14&&Math.hypot(hx-SCHOOL.x,hz-SCHOOL.z)>18)break; }
+  hx=Math.max(-(MAP-14),Math.min(MAP-14,hx)); hz=Math.max(-(MAP-14),Math.min(MAP-14,hz)); pal.position.set(hx,groundH(hx,hz),hz); pal.userData.tx=hx; pal.userData.tz=hz; pal.userData.speed=0;
+  learnNarrate(name+' wants to play hide and seek! Let us count to ten... '+countAloud(10)+' Ready or not, here we come!');
+  q.born=performance.now(); QUEST.active=q; }
+function seekTick(q,dt){ q.t+=dt;
+  if(q.phase==='count'){ if(q.t>(voiceOff()?3:8.5)){ q.phase='seek'; q.t=0; q.born=performance.now(); if(q.bubble&&q.bubble.iconEl)q.bubble.iconEl.textContent='🔍 🦄'; learnNarrate('Where is '+q.pal.userData.def.name+'? Look for the sparkles!'); } return; }
+  q.giggle-=dt; if(q.giggle<=0){ q.giggle=1.6; const p=q.pal.position; for(let i=0;i<6;i++) spark(p.x+(Math.random()-0.5)*1.4,p.y+3+Math.random()*1.2,p.z+(Math.random()-0.5)*1.4,0xff9ad4,0.7,3.2); // a sparkle fountain gives the hiding spot away
+    if(Math.hypot(p.x-P.x,p.z-P.z)<26){ note(1180,0.07,'triangle',0.09); note(1320,0.07,'triangle',0.09,0.09); note(1180,0.07,'triangle',0.08,0.18); } } // ...and a giggle when you're close
+  if(Math.hypot(q.pal.position.x-P.x,q.pal.position.z-P.z)<5.2){ const name=q.pal.userData.def.name; q.pal.userData.hiding=false; addXP(3);
+    DISCOVERED.seekFound=(DISCOVERED.seekFound|0)+1; persistDiscovered(); completeQuest('You found me! Peekaboo! Great searching!'); showPop('🙈','Found '+name+'!'); } }
 function completeQuest(line){ const q=QUEST.active; if(!q)return; celebrate(q.pal.position.x,q.pal.position.y+1,q.pal.position.z,2); chime(2);
   for(let i=0;i<14;i++) spark(q.pal.position.x+(Math.random()-0.5)*2,q.pal.position.y+2+Math.random()*1.5,q.pal.position.z+(Math.random()-0.5)*2,[0xff9ad4,0xffe66b,0xb38aff][i%3],0.6,2);
   if(line) learnNarrate(line); endQuest(); }
-function tryDeliverQuest(){ const q=QUEST.active; if(!q)return; if(Math.hypot(q.pal.position.x-P.x,q.pal.position.z-P.z)>4.6)return;
+function tryDeliverQuest(){ const q=QUEST.active; if(!q||q.kind==='seek')return; if(Math.hypot(q.pal.position.x-P.x,q.pal.position.z-P.z)>4.6)return;
   if(q.kind==='cuddle'){ completeQuest('Aww, thank you for the cuddle!'); }
   else if(q.kind==='bring'){ if(q.ready) completeQuest('Yay! You brought me '+EDU_NUM[q.need]+' '+EDU_NAME[q.type]+'s! Thank you!'); }
   else if(q.kind==='share'){ const had=COUNT[q.type], give=Math.min(q.give,had), now=Math.max(0,had-give);
@@ -855,15 +890,15 @@ function tryDeliverQuest(){ const q=QUEST.active; if(!q)return; if(Math.hypot(q.
     learnNarrate('You had '+numWord(had)+'. Give '+numWord(give)+'... now you have '+numWord(now)+'!');
     celebrate(q.pal.position.x,q.pal.position.y+1,q.pal.position.z,2); endQuest(); } }
 function questTick(dt){ if(zone!=='meadow'||!(skillOn('counting')||skillOn('feelings')))return;
-  if(QUEST.active){ tryDeliverQuest(); if(QUEST.active && performance.now()-QUEST.active.born>90000) endQuest(); return; } // gentle expiry so an ignored quest never starves future ones
+  if(QUEST.active){ if(QUEST.active.kind==='seek') seekTick(QUEST.active,dt); else tryDeliverQuest(); if(QUEST.active && performance.now()-QUEST.active.born>90000) endQuest(); return; } // gentle expiry so an ignored quest never starves future ones
   QUEST.t+=dt; if(QUEST.t>=QUEST.next && !anyOverlayOpen()){ QUEST.t=0; startQuest(); } }
 
 /* ---- Feelings check-in (SEL): a soft, skippable mood bubble over the unicorn ---- */
-function anyOverlayOpen(){ return ['wardrobe','locket','parent','journey','worldMap'].some(id=>{ const e=document.getElementById(id); return e && e.style.display==='flex'; }); }
+function anyOverlayOpen(){ return ['photoView','wardrobe','locket','parent','journey','worldMap'].some(id=>{ const e=document.getElementById(id); return e && e.style.display==='flex'; }); }
 const FEEL_FACES=[ {e:'😊',name:'happy',line:'Happy feels warm and bright!'},{e:'😌',name:'calm',line:'Calm and cozy.'},{e:'🤩',name:'excited',line:'So much fun!'},
   {e:'😴',name:'sleepy',line:'A little sleepy, and that is okay.'},{e:'🥰',name:'loved',line:'Full of love!'},{e:'🤔',name:'curious',line:'Curious about everything!'} ];
 const mood={ t:0, next:34+Math.random()*22, bubble:null, fadeT:0 };
-function showMoodCheckIn(){ if(mood.bubble||zone!=='meadow'||!skillOn('feelings')||anyOverlayOpen())return;
+function showMoodCheckIn(){ if(mood.bubble||zone!=='meadow'||!skillOn('feelings')||anyOverlayOpen()||QUEST.active)return; // never stack on top of a friend's quest bubble
   const n=effLevel()>=1?4:3, pool=FEEL_FACES.slice(0, effLevel()>=2?6:4), idx=pool.map((_,i)=>i);
   for(let i=idx.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=idx[i]; idx[i]=idx[j]; idx[j]=t; }
   const chosen=idx.slice(0,Math.min(n,pool.length)).map(i=>pool[i]);
@@ -1020,12 +1055,28 @@ function genIdentifyBlend(){ const tgt=pick(BLEND_WORDS),others=shuffle(BLEND_WO
   return { id:'identifyBlend', icon:null, faces:shuffle([tgt.e].concat(others.slice(0,n-1).map(o=>o.e))), answer:tgt.e, faceClass:'ctbig', anchorFn:chAnchor(),
     prompt:()=>learnNarrate('Which word starts with '+tgt.p[0]+'... '+tgt.p[1]+'? Listen... '+tgt.w+'.',0.82),
     reframe:()=>learnNarrate(tgt.w.toUpperCase()+' starts with the '+tgt.blend.toUpperCase()+' blend!',0.82), award:()=>recordDiscovery('letters',tgt.blend) }; }
+/* ---- PATTERNS (the Grown-Up "Patterns" helper had no quests behind it): what comes next? AB → AAB/ABB/ABC → skip-counting ---- */
+function patSay(seq){ return seq.map(e=>EDU_NAME[e]).join('... '); }
+function genPattern(){ const kind=pick(effLevel()>=1?['AB','AAB','ABB','ABC','AB']:['AB','AB','ABB']), syms=shuffle(TYPES_E).slice(0,kind==='ABC'?3:2);
+  const unit=kind.split('').map(ch=>syms[ch.charCodeAt(0)-65]), seq=[0,1,2,3,4].map(i=>unit[i%unit.length]), ans=unit[5%unit.length];
+  const tiles=[...new Set(unit)]; if(effLevel()>=1){ const extra=TYPES_E.find(t=>!tiles.includes(t)); if(extra)tiles.push(extra); }
+  return { id:'patternNext', icon:seq.join(' ')+'  ❓', faces:shuffle(tiles), answer:ans, faceClass:'ctbig', anchorFn:chAnchor(),
+    prompt:()=>learnNarrate('What comes next? '+patSay(seq)+'...'),
+    reframe:()=>learnNarrate('Let us say it together... '+patSay(seq)+'... '+EDU_NAME[ans].toUpperCase()+'! The pattern keeps going!'),
+    award:()=>{ DISCOVERED.patterns=(DISCOVERED.patterns|0)+1; persistDiscovered(); } }; }
+function genSkipCount(){ const step=pick(numTier()>=3?[2,5,10,10]:[2,5,10]), start=step*(1+Math.floor(Math.random()*3)), seq=[0,1,2,3].map(i=>start+i*step), ans=start+4*step;
+  const opts=new Set([ans]); for(const d of shuffle([1,-1,step,-step,2,-2])){ if(opts.size>=4)break; const v=ans+d; if(v>0)opts.add(v); }
+  return { id:'skipCount', icon:seq.join(', ')+', ❓', faces:shuffle([...opts]).map(String), answer:String(ans), faceClass:'ctnum', anchorFn:chAnchor(),
+    prompt:()=>learnNarrate('Count by '+numWord(step)+'s! '+seq.join('... ')+'... what comes next?'), // digits: TTS says them right, and the caption reads cleanly
+    reframe:()=>learnNarrate('Jump by '+numWord(step)+'... '+seq.join('... ')+'... '+ans+'!'),
+    award:()=>{ DISCOVERED.patterns=(DISCOVERED.patterns|0)+1; recordDiscovery('countedTo',null,ans); } }; }
 // `max` = phase OUT once curTier exceeds it (so the 8-9 band isn't served the babyish/superseded quests). `tier` = unlock floor.
 const CHALLENGE_DEFS=[ {id:'howMany',skill:'counting',min:0,max:3,gen:genHowMany},{id:'addOneMore',skill:'counting',min:1,max:3,gen:genAddOneMore},{id:'takeAwayShare',skill:'counting',min:0,gen:genTakeAway,need:()=>questPal()!=null},{id:'firstSound',skill:'letters',min:0,max:3,gen:genFirstSound},{id:'sightWordFind',skill:'sightWords',min:0,max:3,gen:genSightWord,need:()=>WORD_BANK.slice(0,wordCeiling()).length>=2},
   {id:'subitize',skill:'counting',min:1,tier:1,max:3,gen:genSubitize},{id:'makeN',skill:'counting',min:1,tier:1,gen:genMakeN},{id:'compare',skill:'counting',min:2,tier:2,max:3,gen:genCompare},{id:'tensOnes',skill:'counting',min:2,tier:3,max:3,gen:genTensOnes},
   {id:'blendCVC',skill:'letters',min:1,tier:1,max:3,gen:genBlendCVC,need:()=>(DISCOVERED.letters||[]).length>=3},{id:'rhyme',skill:'letters',min:1,tier:1,gen:genRhyme},{id:'endSound',skill:'letters',min:1,tier:1,gen:genEndSound},{id:'digraph',skill:'letters',min:2,tier:2,gen:genDigraph},
   /* AGE-8 tier-4 (8-9 band) */ {id:'addWithin20',skill:'counting',min:2,tier:4,gen:genAddWithin20},{id:'subWithin20',skill:'counting',min:2,tier:4,gen:genSubWithin20},{id:'placeValue99',skill:'counting',min:2,tier:4,gen:genPlaceValue99},{id:'compareTwoDigit',skill:'counting',min:2,tier:4,gen:genCompareTwoDigit},{id:'tenMoreLess',skill:'counting',min:2,tier:4,gen:genTenMoreLess},{id:'missingNum',skill:'counting',min:2,tier:4,gen:genMissingNum},
-  {id:'blend4',skill:'letters',min:2,tier:4,gen:genBlend4},{id:'identifyBlend',skill:'letters',min:2,tier:4,gen:genIdentifyBlend} ];
+  {id:'blend4',skill:'letters',min:2,tier:4,gen:genBlend4},{id:'identifyBlend',skill:'letters',min:2,tier:4,gen:genIdentifyBlend},
+  /* PATTERNS */ {id:'patternNext',skill:'patterns',min:0,gen:genPattern},{id:'skipCount',skill:'patterns',min:2,gen:genSkipCount,need:()=>numTier()>=2} ];
 function offerRound(){ let defs=CHALLENGE_DEFS.filter(d=>skillOn(d.skill)&&effLevel()>=d.min&&(d.tier==null||curTier(d.skill)>=d.tier)&&(d.max==null||curTier(d.skill)<=d.max)&&(!d.need||d.need())); if(defs.length>1)defs=defs.filter(d=>d.id!==CH.lastId); if(!defs.length)return null;
   for(let i=0;i<8;i++){ const def=pick(defs); const r=def.gen(); if(r){ r.skill=def.skill; CH.lastId=r.id; return r; } } return null; }
 function tileFor(val){ return CH.bubble?CH.bubble.faceEls.find(el=>el.textContent===val):null; }
@@ -1037,7 +1088,7 @@ function startChallenge(){ if(anyOverlayOpen()||CH.bubble||(zone!=='meadow'&&zon
   r.prompt(); r.promptText=__lastLearnLine; addChallengeExtras(CH.bubble,r); return true; }
 // the question as TEXT (read-along for maths; for every quest when there's no voice — a muted iPad used to show tiles with no question) + a 🔊 hear-it-again chip
 function voiceOff(){ return !soundOn||!SPEECH_OK||SETTINGS.narrationMute; }
-function challengeShowsText(r){ return r.skill==='counting'||voiceOff(); } // sound/word quests stay listening tasks while a voice exists (the text would give the answer away)
+function challengeShowsText(r){ return r.skill==='counting'||r.skill==='patterns'||voiceOff(); } // sound/word quests stay listening tasks while a voice exists (the text would give the answer away)
 function addChallengeExtras(bub,r){ if(!bub)return;
   const q=document.createElement('div'); q.className='bubq'; bub.root.insertBefore(q,bub.root.firstChild); bub.qEl=q;
   const rp=document.createElement('div'); rp.className='bubreplay'; rp.textContent='🔊'; rp.title='Hear it again'; rp.style.pointerEvents='auto';
@@ -1217,7 +1268,7 @@ addEventListener('keydown',e=>{ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRigh
 addEventListener('keyup',e=>{ const k=KEYMAP[e.key]; if(k)held[k]=false; });
 addEventListener('blur',()=>{ held.up=held.left=held.right=held.down=false; }); // a key held while the tab loses focus no longer leaves the unicorn running forever
 // menus: tap the dimmed backdrop (outside the card) or press Escape to close — a second, always-reachable way out
-const OVERLAY_IDS=['wardrobe','locket','parent','journey','worldMap'];
+const OVERLAY_IDS=['photoView','wardrobe','locket','parent','journey','worldMap']; // topmost first
 function closeTopOverlay(){ for(const id of OVERLAY_IDS){ const e=document.getElementById(id); if(e&&e.style.display==='flex'){ e.style.display='none'; note(784,0.12,'triangle',0.18); return true; } } return false; }
 OVERLAY_IDS.forEach(id=>{ const e=document.getElementById(id); if(e) e.addEventListener('click',ev=>{ if(ev.target===e){ e.style.display='none'; note(784,0.12,'triangle',0.18); } }); });
 function holdBtn(id,key){ const el=document.getElementById(id);
@@ -1226,10 +1277,17 @@ function holdBtn(id,key){ const el=document.getElementById(id);
 holdBtn('bUp','up'); holdBtn('bLeft','left'); holdBtn('bRight','right');
 document.getElementById('bMagic').addEventListener('pointerdown',e=>{ e.preventDefault(); castMagic(); });
 // ---- MOUSE steering (mouse/trackpad/pen ONLY — touch devices keep the big buttons): press-and-hold on the open scene to trot toward the cursor (steer + go, gallops if held). Buttons/arrows still work. ----
-const mouse={down:false, nx:0, id:null};
+const mouse={down:false, nx:0, id:null, t0:0, x0:0, y0:0};
 function mouseNX(e){ const v=(e.clientX/Math.max(1,innerWidth)-0.5)*2; mouse.nx=Math.abs(v)<0.08?0:Math.max(-1,Math.min(1,v)); } // -1 (far left) .. +1 (far right), small dead-zone so "straight ahead" is easy
 gl.addEventListener('pointerdown',e=>{ if(gameState!=='play'||anyOverlayOpen())return; if(mouse.down&&mouse.id!==e.pointerId)return; // touch now steers too (finger on the meadow); buttons still work
-  e.preventDefault(); mouse.down=true; mouse.id=e.pointerId; mouseNX(e); });
+  e.preventDefault(); mouse.down=true; mouse.id=e.pointerId; mouse.t0=performance.now(); mouse.x0=e.clientX; mouse.y0=e.clientY; mouseNX(e); });
+gl.addEventListener('pointerup',e=>{ if(e.pointerId!==mouse.id||gameState!=='play')return; // a quick tap ON the unicorn = a trick (a hold still means "run")
+  if(performance.now()-mouse.t0<320 && Math.hypot(e.clientX-mouse.x0,e.clientY-mouse.y0)<14 && uni && tapHitsUnicorn(e.clientX,e.clientY)) unicornTrick(); });
+function tapHitsUnicorn(cx,cy){ // distance from the tap to the unicorn's on-screen "capsule" (hooves → head), so a tap anywhere on her counts
+  const a=__tapV.set(uni.position.x,uni.position.y+0.3,uni.position.z).project(camera); if(a.z>1)return false; const ax=(a.x*0.5+0.5)*W, ay=(-a.y*0.5+0.5)*H;
+  const b=__tapV.set(uni.position.x,uni.position.y+3.4,uni.position.z).project(camera); const bx=(b.x*0.5+0.5)*W, by=(-b.y*0.5+0.5)*H;
+  const dx=bx-ax, dy=by-ay, L=dx*dx+dy*dy||1, t=Math.max(0,Math.min(1,((cx-ax)*dx+(cy-ay)*dy)/L));
+  return Math.hypot(cx-(ax+t*dx),cy-(ay+t*dy)) < Math.max(60, Math.sqrt(L)*0.75); }
 addEventListener('pointermove',e=>{ if(mouse.down&&e.pointerId===mouse.id)mouseNX(e); });
 const mouseUp=e=>{ if(!e||e.pointerId==null||e.pointerId===mouse.id){ mouse.down=false; mouse.id=null; } }; addEventListener('pointerup',mouseUp); addEventListener('pointercancel',mouseUp); addEventListener('blur',()=>mouseUp()); gl.addEventListener('pointerleave',e=>{ if(e.pointerType!=='touch')mouseUp(e); });
 function onResize(){ W=innerWidth;H=innerHeight; readSafe(); renderer.setSize(W,H); camera.aspect=W/H; camera.updateProjectionMatrix(); if(composer){composer.setSize(W,H); if(fxaa){const pr=renderer.getPixelRatio(); fxaa.material.uniforms.resolution.value.set(1/(W*pr),1/(H*pr));}} ui.width=W; ui.height=H; for(const b of __bubbles) b._bh=null; } // re-measure bubble heights after a rotation/resize (wrapping may change)
@@ -1272,6 +1330,15 @@ function narrateMagicShape(shape,nFlowers){
   if(nFlowers<=eduCeiling()){ let phrase=''; for(let i=1;i<nFlowers;i++)phrase+=numWord(i)+'... '; phrase+=numWord(Math.min(nFlowers,10))+' flowers! A '+shape.name+', '+shape.attr+'.'; recordDiscovery('countedTo',null,nFlowers); learnNarrate(phrase); }
   else learnNarrate('Pretty flowers! A '+shape.name+', '+shape.attr+'.');
 }
+const __tapV=new THREE.Vector3(); let trickUntil=0; // wall-clock cooldown (frame-dt is capped, so a dt-based timer drags on slow devices)
+function whinny(){ if(!AC||!soundOn)return; try{ const st=AC.currentTime, o=AC.createOscillator(), lfo=AC.createOscillator(), lg=AC.createGain(), f=AC.createBiquadFilter(), g=AC.createGain();
+  o.type='sawtooth'; o.frequency.setValueAtTime(760,st); o.frequency.linearRampToValueAtTime(1050,st+0.12); o.frequency.exponentialRampToValueAtTime(420,st+0.75);
+  lfo.frequency.value=22; lg.gain.value=55; lfo.connect(lg); lg.connect(o.frequency); f.type='lowpass'; f.frequency.value=1900; f.Q.value=4;
+  g.gain.setValueAtTime(0.0001,st); g.gain.exponentialRampToValueAtTime(0.07,st+0.05); g.gain.exponentialRampToValueAtTime(0.0001,st+0.8);
+  o.connect(f); f.connect(g); g.connect(mg); o.start(st); lfo.start(st); o.stop(st+0.85); lfo.stop(st+0.85); }catch(e){} } // a soft synth "neigh"
+function unicornTrick(){ const now=performance.now(); if(now<trickUntil||FLY.dur>0)return; trickUntil=now+1100; P.rear=0.9; initAudio(); whinny();
+  const gy=groundAt(P.x,P.z); for(let i=0;i<16;i++){ const a=i/16*6.28; spark(P.x+Math.cos(a)*1.6,gy+2.6+Math.random()*1.4,P.z+Math.sin(a)*1.6,[0xff7ac0,0xff9ad4,0xffe66b][i%3],0.65,2.6); }
+  DISCOVERED.tricks=(DISCOVERED.tricks|0)+1; if(Math.random()<0.4) fairySay(pick(['Sparklehoof loves you!','Neigh! That tickles!','What a happy unicorn!','Hee hee! Do it again!'])); }
 function castMagic(){ if(gameState!=='play'||anyOverlayOpen())return; initAudio();
   const x=P.x+Math.sin(P.dir)*2, z=P.z+Math.cos(P.dir)*2, y=groundAt(x,z);
   const big=P.magic>=0.6;
@@ -1443,6 +1510,9 @@ const BADGES=[
   {e:'🔠',l:'Digraph Hero',got:()=>litTier()>=2},
   {e:'🏯',l:'Tens Builder',got:()=>numTier()>=3},
   {e:'🧳',l:'Explorer',got:()=>(DISCOVERED.worldsVisited||[]).length>=1},
+  {e:'🔁',l:'Pattern Spotter',got:()=>(DISCOVERED.patterns|0)>=3},
+  {e:'🙈',l:'Super Seeker',got:()=>(DISCOVERED.seekFound|0)>=3},
+  {e:'📸',l:'Photographer',got:()=>PHOTOS.length>=1},
   {e:'🌍',l:'World Wanderer',got:()=>{ const v=DISCOVERED.worldsVisited||[]; return worldsReachable().filter(w=>!w.home).every(w=>v.includes(w.key)); }},
 ];
 const TRAIL_STONES=[
@@ -1455,7 +1525,7 @@ const TRAIL_STONES=[
   {e:'🌟',l:'Starlight Cove',on:()=>numTier()>=3||litTier()>=3}
 ];
 function sparkleRank(){ const t=Math.max(numTier(),litTier()); return t>=3?'Shining Star':t>=1?'Bright Bloom':'Little Sprout'; }
-function buildJourney(){
+function buildJourney(){ buildPhotos();
   const stats=[['✨',totalCollected,'treasures'],['⭐',totalStars,'stars'],['🔢',DISCOVERED.countedTo||0,'counted to'],['🎯',DISCOVERED.challenges||0,'quests'],['📖',(DISCOVERED.words||[]).length,'words'],['🔤',(DISCOVERED.letters||[]).length,'sounds'],['🔷',(DISCOVERED.shapes||[]).length,'shapes'],['💗',(DISCOVERED.feelings||[]).length,'feelings'],['🐾',babies.length,'friends']];
   const sc=document.getElementById('jstats'); sc.innerHTML='';
   stats.forEach(s=>{ const d=document.createElement('div'); d.className='jstat'; d.innerHTML='<div class="jn">'+s[0]+' '+s[1]+'</div><div class="jl">'+s[2]+'</div>'; sc.appendChild(d); });
@@ -1499,6 +1569,8 @@ function renderDiscovered(){ const el=document.getElementById('pdisc'); if(!el)r
   if(d.words&&d.words.length) L.push('📖 Words: '+d.words.map(w=>w.toUpperCase()).join(', '));
   if(d.letters&&d.letters.length) L.push('🔤 Sounds: '+d.letters.map(l=>l.toUpperCase()).join(', '));
   if(d.feelings&&d.feelings.length) L.push('💗 Feelings: '+d.feelings.join(', '));
+  if(d.patterns) L.push('🔁 Patterns solved: '+d.patterns);
+  if(d.seekFound) L.push('🙈 Hide & seek finds: '+d.seekFound);
   el.innerHTML = L.length>1||d.countedTo? L.join('<br>') : 'Play together to discover numbers, words, shapes and feelings!'; }
 function buildParentPanel(){ const sk=document.getElementById('pskills'); sk.innerHTML='';
   SKILL_LABELS.forEach(p=>{ const row=document.createElement('div'); row.className='prow'; const lbl=document.createElement('div'); lbl.className='pl'; lbl.textContent=p[1]; row.appendChild(lbl);
@@ -1854,6 +1926,7 @@ function update(dt){
       spark(tx,groundAt(tx,tz)+0.6,tz,tc,fast?0.7:0.45,fast?2:1.2);
       if(fast) spark(tx+(Math.random()-0.5)*1.3,groundAt(tx,tz)+0.3,tz+(Math.random()-0.5)*1.3,0xfff1d6,0.5,1.6); } }
   if(P.prance>0)P.prance-=dt;
+  let rearA=0; if(P.rear>0){ P.rear=Math.max(0,P.rear-dt); const k=1-P.rear/0.9; rearA=Math.sin(k*Math.PI)*0.55; } // tap trick: rear up on the hind legs
   // place unicorn (+ flight-reward lift & party dance)
   const gy=groundAt(P.x,P.z); const hop=P.prance>0?Math.abs(Math.sin((1-P.prance/0.55)*6.28))*0.5:0;
   let flyY=0, flyTilt=0, danceY=0, danceSway=0;
@@ -1862,7 +1935,7 @@ function update(dt){
     if(FLY.t>=FLY.dur){ FLY.dur=0; fairySay('Wheee! What a flight!'); } }
   const partying=(zone==='gathering');
   if(partying){ const db=performance.now()*0.004; danceY=Math.abs(Math.sin(db*2))*0.55; danceSway=Math.sin(db*1.4)*0.2; }
-  uni.position.set(P.x, gy+hop+flyY+danceY, P.z); uni.rotation.set(flyTilt, P.dir-Math.PI/2, danceSway);
+  uni.position.set(P.x, gy+hop+flyY+danceY+rearA*1.1, P.z); uni.rotation.set(flyTilt, P.dir-Math.PI/2, danceSway+rearA);
   if(!renderer.shadowMap.enabled){ uniBlob.visible=(FLY.dur<=0); if(FLY.dur<=0)uniBlob.position.set(P.x,gy+0.05,P.z); } else if(uniBlob.visible) uniBlob.visible=false; // blob hides while airborne
   if(flyWings){ flyWings.visible=FLY.dur>0; if(FLY.dur>0){ const fl=0.15+Math.sin(performance.now()*0.011)*0.5; if(flyWings.userData.R)flyWings.userData.R.rotation.x=-fl; if(flyWings.userData.L)flyWings.userData.L.rotation.x=fl; } }
   const gait=performance.now()*0.012*(1+Math.max(0,P.speed-9)*0.06); const ms=Math.min(1,Math.abs(P.speed)/9); // legs pump faster at a gallop
@@ -1898,6 +1971,7 @@ function update(dt){
 
   // unicorn friends: wander the meadow, light up + greet when you come near
   if(zone==='meadow') for(const f of friends){ const u=f.userData; u.ph+=dt; if(u.greetCd>0)u.greetCd-=dt;
+    if(u.hiding){ f.position.y=groundH(f.position.x,f.position.z)+Math.abs(Math.sin(u.ph*3))*0.12; if(u.legs)u.legs.forEach(l=>l.rotation.x=0); continue; } // hiding: hold still (a tiny excited wiggle)
     const dpx=P.x-f.position.x, dpz=P.z-f.position.z, dp=Math.hypot(dpx,dpz);
     if(dp<7){ const fd=Math.atan2(dpx,dpz)-Math.PI/2; f.rotation.y+=(fd-f.rotation.y)*Math.min(1,dt*6); u.speed*=0.86;
       f.position.y=groundH(f.position.x,f.position.z)+Math.abs(Math.sin(u.ph*5))*0.22;
@@ -1978,7 +2052,8 @@ let idleT=0, blinkT=3, blinkP=0;
 /* ---- off-screen guide: when the quest friend (or the rainbow star) is out of view, a bubble at the screen edge points the way ---- */
 const guideEl=document.getElementById('guide'), guideIco=guideEl.querySelector('.gb'), guidePt=guideEl.querySelector('.gp'), __gv=new THREE.Vector3(); let guideShown=false, guideIcon='';
 function guideTarget(){ if(zone!=='meadow'||anyOverlayOpen()||CH.bubble||mood.bubble)return null;
-  const q=QUEST.active; if(q&&q.pal&&(q.kind!=='bring'||q.ready)) return {p:q.pal.position,dy:2.4,icon:PAL_E[q.pal.userData.kind]||'🦄'}; // bring-quests point the way once the basket is full
+  const q=QUEST.active; if(q&&q.kind==='seek'){ if(q.phase==='seek'&&q.t>20) return {p:q.pal.position,dy:2.4,icon:'🙈'}; } // hide & seek: only a hint after a good try
+  else if(q&&q.pal&&(q.kind!=='bring'||q.ready)) return {p:q.pal.position,dy:2.4,icon:PAL_E[q.pal.userData.kind]||'🦄'}; // bring-quests point the way once the basket is full
   if(magicStar){ const age=(performance.now()-(magicStar.userData.born||0))/1000; if(age<15||(age>60&&age%60<10)) return {p:magicStar.position,dy:0,icon:'🌟'}; } // the star nudges now and then, not nonstop
   return null; }
 function updateGuide(){ const t=guideTarget(); if(!t){ if(guideShown){ guideEl.style.display='none'; guideShown=false; } return; }
@@ -1988,6 +2063,29 @@ function updateGuide(){ const t=guideTarget(); if(!t){ if(guideShown){ guideEl.s
   const k=Math.min(hx/Math.max(1e-6,Math.abs(Math.cos(ang))), (Math.sin(ang)<0?hyT:hyB)/Math.max(1e-6,Math.abs(Math.sin(ang))));
   guideEl.style.transform='translate('+Math.round(W/2+Math.cos(ang)*k)+'px,'+Math.round(H/2+Math.sin(ang)*k)+'px)'; guidePt.style.transform='rotate('+ang.toFixed(3)+'rad) translateX(24px)';
   if(guideIcon!==t.icon){ guideIco.textContent=t.icon; guideIcon=t.icon; } if(!guideShown){ guideEl.style.display='block'; guideShown=true; } }
+
+/* ---- 📸 PHOTO MODE: snap the 3D scene (no HUD), keep the last 12 as small JPEGs, browse them in My Journey ---- */
+const PHOTOS=[]; try{ const a=JSON.parse(localStorage.getItem('sparklehoof_photos')||'[]'); if(Array.isArray(a))a.forEach(u=>{ if(typeof u==='string'&&u.startsWith('data:image/'))PHOTOS.push(u); }); }catch(e){}
+let photoReq=false, photoBusy=false;
+function savePhotos(){ for(;;){ try{ localStorage.setItem('sparklehoof_photos',JSON.stringify(PHOTOS)); return; }catch(e){ if(PHOTOS.length<=1)return; PHOTOS.shift(); } } } // storage full → drop the oldest
+function takePhoto(){ if(gameState!=='play'||photoBusy||anyOverlayOpen())return; photoBusy=true; initAudio(); if(FLY.dur<=0)P.rear=0.9; // strike a pose (rear up)…
+  if(Math.random()<0.5) fairySay('Say sparkles!'); setTimeout(()=>{ photoReq=true; },430); } // …and snap at the top of it
+// SELFIE: the chase camera only ever shows her back — for the captured frame, swing the camera round to a front three-quarter view of her face
+function poseSelfieCamera(){ if(!uni)return; const fx=Math.sin(P.dir), fz=Math.cos(P.dir), sx=Math.cos(P.dir), sz=-Math.sin(P.dir);
+  const tx=uni.position.x+fx*1.3, ty=uni.position.y+2.7, tz=uni.position.z+fz*1.3;
+  camera.position.set(tx+fx*7.2+sx*3.2, ty+0.9, tz+fz*7.2+sz*3.2); camera.lookAt(tx,ty,tz); }
+function snapPhoto(){ try{ const src=renderer.domElement, w=480, h=Math.max(1,Math.round(w*src.height/src.width)), c=document.createElement('canvas'); c.width=w; c.height=h; const x=c.getContext('2d');
+    x.drawImage(src,0,0,w,h); // must run right after render (same task) — the drawing buffer isn't preserved
+    x.strokeStyle='#fff'; x.lineWidth=10; x.strokeRect(5,5,w-10,h-10); x.font='bold 20px "Comic Sans MS",sans-serif'; x.textAlign='right'; x.lineWidth=4; x.strokeStyle='rgba(193,77,158,.8)'; x.strokeText("✨ Vic's Meadow",w-18,h-18); x.fillStyle='#fff'; x.fillText("✨ Vic's Meadow",w-18,h-18);
+    PHOTOS.push(c.toDataURL('image/jpeg',0.75)); while(PHOTOS.length>12)PHOTOS.shift(); savePhotos();
+    const fl=document.getElementById('flash'); fl.classList.add('on'); requestAnimationFrame(()=>requestAnimationFrame(()=>fl.classList.remove('on')));
+    note(1600,0.05,'square',0.06); note(900,0.08,'triangle',0.1,0.05); showPop('📸','Snap!'); }catch(e){ console.warn('photo failed',e); } photoBusy=false; }
+function buildPhotos(){ const el=document.getElementById('jphotos'); if(!el)return; el.innerHTML=''; if(!PHOTOS.length)return;
+  const h=document.createElement('div'); h.className='jphh'; h.textContent='📸 My Photos'; el.appendChild(h);
+  PHOTOS.slice().reverse().forEach(u=>{ const im=document.createElement('img'); im.className='jph'; im.src=u; im.alt='photo'; im.addEventListener('click',()=>openPhoto(u)); el.appendChild(im); }); }
+function openPhoto(u){ document.getElementById('pvimg').src=u; document.getElementById('photoView').style.display='flex'; note(880,0.1,'triangle',0.16); }
+document.getElementById('pvclose').addEventListener('click',()=>{ document.getElementById('photoView').style.display='none'; note(784,0.12,'triangle',0.18); });
+document.getElementById('bPhoto').addEventListener('pointerdown',e=>{ e.preventDefault(); takePhoto(); });
 
 /* ---- magic meter ring (2D) ---- */
 const mr=document.getElementById('magicring'), mrx=mr.getContext('2d');
@@ -2003,7 +2101,10 @@ function loop(now){ if(LOW && now-capLast<15){ requestAnimationFrame(loop); retu
   const dt=Math.min(0.05,(now-last)/1000)||0; last=now;
   if(gameState==='play'){ update(dt); drawMagicRing();
     if(!govStepped){ if(govWarm>0) govWarm-=dt; else { govAccT+=dt; govFrames++; if(govAccT>=1.5){ if(govFrames/govAccT<48) applyLowestQuality(); govAccT=0; govFrames=0; } } } } // demote on the FIRST sub-48fps 1.5s window (was ~7s + 2 windows)
+  let __hemiWas=-1; if(photoReq){ poseSelfieCamera(); __hemiWas=hemi.intensity; hemi.intensity+=0.75; } // one frame from the front (under the white flash) with a soft studio fill; update() restores the chase cam next frame
   if(useComposer&&composer) composer.render(dt); else renderer.render(scene,camera);
+  if(__hemiWas>=0) hemi.intensity=__hemiWas;
+  if(photoReq){ photoReq=false; snapPhoto(); } // capture in the same task as the render
   requestAnimationFrame(loop);
 }
 
@@ -2015,7 +2116,7 @@ function startGame(){ initAudio(); if(AC&&AC.state==='suspended')AC.resume();
   restoreMeadow(); buildStars(); buildCritters(); buildFireflies(); startAmbientPad(); sessionStart=performance.now(); windDownFired=false; windDownBias=0;
   for(let i=0;i<26;i++) spawnCollectible();
   ['arc','jars','tools','lvl'].forEach(id=>{ const e=document.getElementById(id); if(e)e.style.display='flex'; }); clampLevelToCap(); updateLevelBadge();
-  ['bUp','bLeft','bRight','bMagic','magicring'].forEach(id=>document.getElementById(id).style.display=id==='magicring'?'block':'flex');
+  ['bUp','bLeft','bRight','bMagic','magicring','bPhoto'].forEach(id=>document.getElementById(id).style.display=id==='magicring'?'block':'flex');
   document.getElementById('title').style.display='none';
   gameState='play';
   say('idle'); setTimeout(()=>fairySay("Let's find sparkly stars!"),700);
@@ -2047,7 +2148,7 @@ Object.assign(window.__SP,{ openParentPanel, resetProfile, buildParentPanel, per
   startChallenge, offerRound, onTilePick, CHALLENGE_DEFS, CH, DISCOVERED,
   MASTERY, recordMastery, numTier:()=>numTier(), litTier:()=>litTier(), numCeiling:()=>numCeiling(),
   forceHigh:()=>{ AMBIENCE.low=false; buildStars(); buildCritters(); }, startWeather });
-Object.assign(window.__SP,{ LOOK, UNLOCK, EARNED_PALS, guideShown:()=>guideShown, maneShimmer:()=>maneShimmer, flyWings:()=>flyWings, enterWorld:(k)=>enterWorld(k), openWorldMap:()=>openWorldMap(), buildWorldMap:()=>buildWorldMap(), WORLDS,
+Object.assign(window.__SP,{ LOOK, UNLOCK, EARNED_PALS, PHOTOS, takePhoto, unicornTrick, startSeek, FRIENDS:friends, guideShown:()=>guideShown, maneShimmer:()=>maneShimmer, flyWings:()=>flyWings, enterWorld:(k)=>enterWorld(k), openWorldMap:()=>openWorldMap(), buildWorldMap:()=>buildWorldMap(), WORLDS,
   worldState:()=>({zone:zone, unlocked:[...UNLOCKED_WORLDS], visited:(DISCOVERED.worldsVisited||[]).slice(), built:WORLDS.filter(w=>w.built).map(w=>w.key)}),
   setSparkleLevel:(n)=>{ LEVEL=Math.max(1,Math.min(levelCap(),n|0)); LXP=0; MAGIC_BIG=LEVEL>=8; WORLDS.forEach(w=>{ if(w.home||w.req<=LEVEL)UNLOCKED_WORLDS.add(w.key); }); persistLevel(); persistWorlds(); updateLevelBadge(); } });
 </script>
