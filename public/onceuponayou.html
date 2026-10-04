@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#6B5BD2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Once Upon a You">
+<title>Once Upon a You</title>
+<style>
+  :root{ --ink:#3A3550; --violet:#6B5BD2; --gold:#F4C04A; --card:#FFFFFF; --panel:#F7F5FF; --accent:#7FC889; }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none}
+  html,body{margin:0; height:100%; overflow:hidden; touch-action:manipulation}
+  body{ font-family:"SF Pro Rounded","Segoe UI Rounded",-apple-system,system-ui,"Segoe UI",Roboto,sans-serif; color:var(--ink);
+    background:radial-gradient(120% 120% at 50% 0%, #F3EFFF 0%, #EAF6FB 55%, #E5F3EC 100%); }
+  #stage{position:fixed; inset:0; display:flex; align-items:center; justify-content:center}
+  svg.scene-svg{display:block; width:100%; height:100%}
+  /* purely-decorative SVG layers must NEVER intercept taps — only #activity, #props, #companionWrap and #tapLayer are interactive */
+  #fx,#banner,#ambient,#stars,#clouds,#signpost,#bloom0,#bloom1,#bloom2,#avatarWrap,#placeSchool,#placePlayground,#placeHouse{pointer-events:none}
+  /* travel bar (place picker) — big iconic buttons a non-reader can use; bottom-centre, clear of other tools */
+  #places{position:fixed; left:max(46px,calc(env(safe-area-inset-left) + 46px)); top:max(12px,env(safe-area-inset-top)); display:flex; gap:9px; z-index:21}
+  .travel{width:46px; height:46px; border-radius:50%; border:none; cursor:pointer; font-size:23px; line-height:1; background:rgba(255,255,255,.86); box-shadow:0 5px 16px rgba(70,55,110,.18); display:flex; align-items:center; justify-content:center; transition:transform .12s, box-shadow .12s}
+  .travel:active{transform:scale(.9)}
+  .travel.sel{box-shadow:0 0 0 3px var(--violet), 0 5px 16px rgba(70,55,110,.18); transform:scale(1.1); background:#fff}
+  /* kid liveliness + equipment motion (CSS = cheap, off the JS thread) */
+  @keyframes kbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+  .kidbob{animation:kbob 2.6s ease-in-out infinite}
+  @keyframes swingRock{0%,100%{transform:rotate(12deg)}50%{transform:rotate(-12deg)}}
+  /* glowing ring on a selected playground friend + clearer touch feedback */
+  @keyframes selpulse{0%,100%{opacity:.5}50%{opacity:1}}
+  .selring{animation:selpulse 1.1s ease-in-out infinite}
+  /* speech bubble */
+  #say{position:fixed; left:50%; transform:translateX(-50%); top:max(10px,env(safe-area-inset-top)); max-width:88vw;
+    background:rgba(255,255,255,.94); color:var(--ink); font-weight:700; font-size:clamp(15px,4.2vw,20px); line-height:1.25;
+    padding:11px 18px; border-radius:18px; box-shadow:0 8px 26px rgba(70,55,110,.2); opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; z-index:20; text-align:center}
+  #say.show{opacity:1}
+  /* tools */
+  .tool{position:fixed; width:46px; height:46px; border-radius:50%; border:none; cursor:pointer; z-index:21;
+    background:rgba(255,255,255,.86); box-shadow:0 5px 16px rgba(70,55,110,.18); font-size:22px; display:flex; align-items:center; justify-content:center}
+  .tool:active{transform:scale(.92)}
+  #playAgain{right:max(12px,env(safe-area-inset-right)); bottom:max(14px,env(safe-area-inset-bottom)); width:58px;height:58px; font-size:28px;
+    background:radial-gradient(circle at 38% 32%,#fff,#ffe9b8 70%,var(--gold))}
+  #muteDot{right:max(12px,env(safe-area-inset-right)); top:max(12px,env(safe-area-inset-top))}
+  #gAnchor{position:fixed; left:0; top:0; width:34px; height:34px; z-index:22; background:transparent}
+  /* overlays */
+  .overlay{position:fixed; inset:0; z-index:40; display:none; align-items:center; justify-content:center; padding:16px;
+    background:radial-gradient(120% 120% at 50% 0%, #F3EFFF 0%, #EAF6FB 55%, #E5F3EC 100%)}
+  .overlay.dim{background:rgba(58,53,80,.42); backdrop-filter:blur(3px)}
+  .overlay.show{display:flex}
+  .card{width:100%; max-width:460px; background:var(--card); border-radius:26px; padding:18px 18px 20px; box-shadow:0 18px 50px rgba(70,55,110,.22); text-align:center; max-height:94vh; overflow:auto}
+  .card h2{margin:4px 0 8px; color:var(--violet); font-size:22px; font-weight:800}
+  .scene-mini{background:linear-gradient(#EAF7FC,#E5F3EC); border-radius:20px; margin-bottom:8px}
+  .opts{display:flex; gap:9px; flex-wrap:wrap; justify-content:center; margin:6px 0}
+  .row{display:flex; align-items:center; gap:10px; margin:8px 2px; justify-content:center}
+  .row .label{width:66px; flex:0 0 66px; text-align:right; font-weight:700; font-size:13px; color:#6f6a85}
+  .sw{width:30px; height:30px; border-radius:50%; cursor:pointer; border:3px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.06); transition:transform .12s}
+  .sw:active{transform:scale(.9)} .sw.sel{box-shadow:0 0 0 3px var(--violet); transform:scale(1.08)}
+  .pill{border:none; background:var(--panel); color:#5b5676; font-weight:700; font-size:13px; padding:8px 13px; border-radius:13px; cursor:pointer; font-family:inherit; transition:transform .12s}
+  .pill:active{transform:scale(.94)} .pill.sel{background:var(--violet); color:#fff}
+  .big-pick{display:inline-flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; padding:8px; border-radius:18px; transition:transform .12s; background:var(--panel)}
+  .big-pick.sel{box-shadow:0 0 0 4px var(--violet); transform:scale(1.05); background:#fff}
+  .big-pick:active{transform:scale(.96)}
+  .colorblob{width:54px; height:54px; border-radius:50%; cursor:pointer; border:4px solid #fff; box-shadow:0 4px 12px rgba(0,0,0,.12); transition:transform .12s}
+  .colorblob.sel{box-shadow:0 0 0 5px var(--violet); transform:scale(1.08)} .colorblob:active{transform:scale(.94)}
+  .nameField input{width:100%; font-family:inherit; font-weight:800; font-size:20px; color:var(--ink); padding:13px 14px; border:2px solid #ece8fb; border-radius:14px; background:#fbfaff; outline:none; text-align:center; margin:4px 0}
+  .nameField input:focus{border-color:var(--violet)}
+  .sub{font-size:13px; color:#9b96ad; margin:4px 4px}
+  .micro{font-size:11px; color:#bdb8cf; margin-top:8px}
+  .go{margin-top:12px; border:none; cursor:pointer; font-family:inherit; font-weight:800; font-size:17px; color:#fff; padding:13px 26px; border-radius:16px;
+    background:linear-gradient(135deg,var(--violet),#8a7be0); box-shadow:0 8px 22px rgba(107,91,210,.4)}
+  .go:disabled{opacity:.4} .go:active{transform:scale(.96)}
+  .gnum{width:64px;height:64px;border-radius:18px;border:none;background:var(--panel);font-size:30px;font-weight:800;color:var(--violet);cursor:pointer;margin:6px}
+  .gnum:active{transform:scale(.94)}
+  .grow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 2px;font-weight:700;font-size:14px;color:#5b5676}
+  .toggle{width:52px;height:30px;border-radius:15px;background:#ddd6f2;position:relative;cursor:pointer;flex:0 0 52px}
+  .toggle.on{background:var(--accent)} .toggle .kn{position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:left .15s} .toggle.on .kn{left:25px}
+  @media (prefers-reduced-motion: reduce){ *{animation:none !important; transition:none !important} }
+  #fallbackCap{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:rgba(255,255,255,.92);color:var(--ink);font-weight:700;font-size:15px;padding:9px 16px;border-radius:14px;box-shadow:0 6px 18px rgba(70,55,110,.18);display:none;z-index:19;max-width:88vw;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- ============ PLAY STAGE ============ -->
+<div id="stage">
+  <svg id="scene" class="scene-svg" viewBox="0 0 480 340" preserveAspectRatio="xMidYMid meet" role="img" aria-label="A magical meadow">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop id="skyTop" offset="0" stop-color="#C3E7F8"/><stop offset="1" stop-color="#EAF7FC"/></linearGradient>
+      <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#BCE595"/><stop offset="1" stop-color="#98CE6F"/></linearGradient>
+      <clipPath id="shirtClip"><rect x="78" y="150" width="64" height="58" rx="24"/></clipPath>
+      <radialGradient id="bloomGlow"><stop offset="0" stop-color="#FFF3C0" stop-opacity=".9"/><stop offset="1" stop-color="#FFF3C0" stop-opacity="0"/></radialGradient>
+    </defs>
+    <rect id="skyRect" x="0" y="0" width="480" height="210" fill="url(#sky)"/>
+    <circle id="sun" cx="46" cy="46" r="30" fill="#FBE08A" opacity=".35"/><circle cx="46" cy="46" r="21" fill="#FBDE7E"/>
+    <g id="clouds" fill="#FFFFFF" opacity=".92"><ellipse cx="372" cy="42" rx="26" ry="13"/><ellipse cx="392" cy="48" rx="20" ry="11"/><ellipse cx="354" cy="50" rx="16" ry="9"/></g>
+    <g id="stars" opacity="0"></g>
+    <path id="grassPath" d="M0,196 C120,180 220,202 320,190 C400,181 450,198 480,188 L480,340 L0,340 Z" fill="url(#grass)"/>
+    <!-- progress blooms (start as closed buds) -->
+    <g id="bloom0" transform="translate(60,150)"></g>
+    <g id="bloom1" transform="translate(240,128)"></g>
+    <g id="bloom2" transform="translate(420,150)"></g>
+    <g id="ambient"></g>            <!-- butterflies, birds, daily-delight extras -->
+    <g id="signpost"></g>          <!-- planted name signpost -->
+    <g id="placePlayground" style="display:none"></g>  <!-- playground decor: equipment + kid NPCs (decorative; taps handled by #props above) -->
+    <g id="placeSchool" style="display:none"></g>      <!-- school decor: schoolhouse, chalkboard, desks + classmate NPCs -->
+    <g id="placeHouse" style="display:none"></g>       <!-- cozy home interior: window, sofa, bookshelf, toy chest, lamp, pet bed -->
+    <rect id="tapLayer" x="0" y="0" width="480" height="340" fill="transparent"/> <!-- tap-to-walk base: sits BELOW activity/props so letter & object taps register; empty grass taps fall through to here -->
+    <g id="props"></g>             <!-- interactive tap pads (kids/equipment/desks); persists across clearActivity() -->
+    <g id="activity"></g>          <!-- activity targets live here -->
+    <g id="banner"></g>            <!-- treasure / count / name ribbon -->
+    <!-- shadows + companion + avatar -->
+    <ellipse id="compShadow" cx="0" cy="0" rx="26" ry="6" fill="#000" opacity=".07"/>
+    <ellipse id="avShadow" cx="0" cy="0" rx="34" ry="7" fill="#000" opacity=".08"/>
+    <g id="companionWrap"><g id="companion"></g></g>
+    <g id="avatarWrap"><g id="avatar"></g></g>
+    <g id="fx"></g>                 <!-- walk sparkle, particles -->
+  </svg>
+</div>
+
+<div id="say"></div>
+<div id="fallbackCap"></div>
+<button class="tool" id="muteDot" title="Sound">🔊</button>
+<button class="tool" id="playAgain" title="Play">✨</button>
+<div id="gAnchor"></div>
+<div id="places">
+  <button class="travel sel" data-place="meadow" aria-label="Go to the meadow">🌳</button>
+  <button class="travel" data-place="house" aria-label="Go to the house">🏠</button>
+  <button class="travel" data-place="playground" aria-label="Go to the playground">🛝</button>
+  <button class="travel" data-place="school" aria-label="Go to school">🏫</button>
+</div>
+
+<!-- ============ SETUP ============ -->
+<div class="overlay" id="setup">
+  <div class="card" id="setupCard"></div>
+</div>
+
+<!-- ============ GROWN-UP GATE + CORNER ============ -->
+<div class="overlay dim" id="gate">
+  <div class="card" style="max-width:360px">
+    <h2>Are you a grown-up?</h2>
+    <div class="sub">Tap the number <b id="gateTarget">3</b></div>
+    <div id="gateNums" style="margin:10px 0"></div>
+  </div>
+</div>
+<div class="overlay dim" id="grownup">
+  <div class="card" style="text-align:left">
+    <h2 style="text-align:center">🌸 Grown-Up Corner</h2>
+    <div class="grow"><span>Age (sets the gentle pace)</span><div class="opts" id="gAge"></div></div>
+    <div class="grow"><span>Talking speed</span><div class="opts" id="gPace"></div></div>
+    <div class="grow"><span>Mute learning talk only</span><div class="toggle" id="gMute"><div class="kn"></div></div></div>
+    <div class="grow"><span>Sleepy time after</span><div class="opts" id="gWind"></div></div>
+    <button class="pill" id="gShare" style="width:100%;margin:6px 0;background:var(--violet);color:#fff">✨ Show someone this Meadow</button>
+    <button class="pill" id="gWindNow" style="width:100%;margin:6px 0">🌙 Start sleepy time now</button>
+    <div class="micro" style="text-align:center">Everything stays on this tablet — no accounts, nothing leaves the device.</div>
+    <div style="text-align:center"><button class="pill" id="gReset" style="margin-top:8px;color:#c25">Start over</button>
+      <button class="go" id="gClose" style="margin-left:8px">Done</button></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   ONCE UPON A YOU — personalized no-fail learning meadow.
+   One file, vanilla JS + inline SVG. Generate-at-setup, then offline.
+   No backend, no SDKs, no PII off device. No fail states.
+   Avatar/companion art reused verbatim from the character-builder demo.
+   ============================================================ */
+
+/* ---------- demo constants + art (VERBATIM) ---------- */
+const skins=["#FAD9C1","#F0C5A4","#E0AC85","#C68B62","#A6754F","#7D5638"];
+const eyeCols=["#5B3A1E","#2E2620","#4F86C6","#5BA678","#B07A2E"];
+const hairCs=["#2E2520","#6B4324","#C98A3A","#101012","#E7B85A","#B65C3E"];
+const shirts=["#5BAEDC","#F47C7C","#7FC889","#F4B94B","#A98BD6","#EF8FB8"];
+const colorWords=["Blue","Red","Green","Yellow","Purple","Pink"];
+const hairStyles=["Short","Buzz","Curly","Puffs","Long","Ponytail","Braids","Bun"];
+const outfits=["Tee","Stripes","Star","Overalls","Dress"];
+const glassesOpt=["None","Round","Square"];
+const freckOpt=["None","Freckles"];
+const headOpt=["None","Bow","Band"];
+const pets=["Bunny","Fox","Cat","Puppy"];
+const friendName={Bunny:"Pip",Fox:"Sunny",Cat:"Mittens",Puppy:"Biscuit"};
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+
+function dome(c){return `<path d="M56,108 C52,62 82,46 110,46 C138,46 168,62 164,108 C150,92 130,86 110,86 C90,86 70,92 56,108 Z" fill="${c}"/>`;}
+function hair(style,c){
+  if(style==="Short")return dome(c);
+  if(style==="Buzz")return `<path d="M62,98 C62,66 86,52 110,52 C134,52 158,66 158,98 C150,90 130,88 110,88 C90,88 70,90 62,98 Z" fill="${c}" opacity=".96"/>`;
+  if(style==="Curly")return [[80,62,20],[110,52,22],[140,62,20],[158,86,17],[62,86,17],[96,50,18],[124,50,18],[58,106,14],[162,106,14]].map(([x,y,r])=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`).join("");
+  if(style==="Puffs")return dome(c)+`<circle cx="78" cy="50" r="16" fill="${c}"/><circle cx="142" cy="50" r="16" fill="${c}"/>`;
+  if(style==="Long")return dome(c)+`<path d="M58,98 C44,122 46,156 54,178 C62,184 75,182 79,168 C77,142 75,120 77,100 C71,104 64,102 58,98 Z" fill="${c}"/><path d="M162,98 C176,122 174,156 166,178 C158,184 145,182 141,168 C143,142 145,120 143,100 C149,104 156,102 162,98 Z" fill="${c}"/>`;
+  if(style==="Ponytail")return dome(c)+`<path d="M158,92 C184,88 196,110 188,134 C182,152 168,150 162,136 C160,120 158,106 158,92 Z" fill="${c}"/><ellipse cx="159" cy="98" rx="7" ry="5" fill="#000" opacity=".12"/>`;
+  if(style==="Braids")return dome(c)+[[60,120,9],[58,138,9],[56,156,8],[160,120,9],[162,138,9],[164,156,8]].map(([x,y,r])=>`<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`).join("")+`<circle cx="55" cy="166" r="3" fill="#000" opacity=".12"/><circle cx="165" cy="166" r="3" fill="#000" opacity=".12"/>`;
+  return `<circle cx="110" cy="40" r="18" fill="${c}"/><ellipse cx="110" cy="58" rx="13" ry="6" fill="${c}" opacity=".75"/>`+dome(c);
+}
+function headwear(k){
+  if(k==="Bow")return `<g><path d="M84,52 L70,45 L70,59 Z" fill="#F47C7C"/><path d="M84,52 L98,45 L98,59 Z" fill="#F47C7C"/><circle cx="84" cy="52" r="4" fill="#E25C5C"/></g>`;
+  if(k==="Band")return `<path d="M66,94 Q110,76 154,94" fill="none" stroke="#EFA0C4" stroke-width="8" stroke-linecap="round"/>`;
+  return "";
+}
+function eyes(ec){return `<ellipse cx="93" cy="108" rx="8" ry="10" fill="#fff"/><ellipse cx="127" cy="108" rx="8" ry="10" fill="#fff"/><circle cx="94" cy="109" r="5" fill="${ec}"/><circle cx="128" cy="109" r="5" fill="${ec}"/><circle cx="94" cy="110" r="2.4" fill="#241F1B"/><circle cx="128" cy="110" r="2.4" fill="#241F1B"/><circle cx="96" cy="106.5" r="1.7" fill="#fff"/><circle cx="130" cy="106.5" r="1.7" fill="#fff"/>`;}
+function freckles(on){if(on!=="Freckles")return ""; return [[88,122],[94,124],[100,122],[120,122],[126,124],[132,122],[108,121],[112,121]].map(([x,y])=>`<circle cx="${x}" cy="${y}" r="1.3" fill="#B5764C" opacity=".6"/>`).join("");}
+function glasses(s){if(s==="None")return ""; const f="#4A4660", tint='fill="#fff" fill-opacity=".12"';
+  const bridge=`<path d="M101,107 q9,-3 18,0" fill="none" stroke="${f}" stroke-width="3" stroke-linecap="round"/>`;
+  const arms=`<line x1="81" y1="107" x2="60" y2="108" stroke="${f}" stroke-width="3" stroke-linecap="round"/><line x1="139" y1="107" x2="160" y2="108" stroke="${f}" stroke-width="3" stroke-linecap="round"/>`;
+  if(s==="Round")return `<circle cx="93" cy="108" r="12" ${tint} stroke="${f}" stroke-width="3"/><circle cx="127" cy="108" r="12" ${tint} stroke="${f}" stroke-width="3"/>${bridge}${arms}`;
+  return `<rect x="81" y="97" width="24" height="22" rx="6" ${tint} stroke="${f}" stroke-width="3"/><rect x="115" y="97" width="24" height="22" rx="6" ${tint} stroke="${f}" stroke-width="3"/>${bridge}${arms}`;
+}
+function torso(style,c){const collar=`<path d="M88,151 q22,16 44,0 v6 q-22,15 -44,0 Z" fill="#000" opacity=".05"/>`;
+  if(style==="Tee")return `<rect x="78" y="150" width="64" height="58" rx="24" fill="${c}"/>${collar}`;
+  if(style==="Stripes")return `<rect x="78" y="150" width="64" height="58" rx="24" fill="${c}"/><g clip-path="url(#shirtClip)" fill="#fff" opacity=".82"><rect x="78" y="162" width="64" height="7"/><rect x="78" y="178" width="64" height="7"/><rect x="78" y="194" width="64" height="7"/></g>${collar}`;
+  if(style==="Star")return `<rect x="78" y="150" width="64" height="58" rx="24" fill="${c}"/><path d="M110,166 l4.7,9.5 10.5,1.5 -7.6,7.4 1.8,10.4 -9.4,-4.9 -9.4,4.9 1.8,-10.4 -7.6,-7.4 10.5,-1.5 Z" fill="#FBE08A"/>${collar}`;
+  if(style==="Overalls")return `<rect x="78" y="150" width="64" height="58" rx="24" fill="#EFEDFA"/><rect x="90" y="150" width="7" height="24" rx="3" fill="${c}"/><rect x="123" y="150" width="7" height="24" rx="3" fill="${c}"/><path d="M86,170 h48 v38 q-24,12 -48,0 Z" fill="${c}"/><rect x="100" y="182" width="20" height="15" rx="3" fill="#000" opacity=".08"/><circle cx="93" cy="173" r="2.2" fill="#FBE08A"/><circle cx="127" cy="173" r="2.2" fill="#FBE08A"/>${collar}`;
+  return `<path d="M84,156 q26,-12 52,0 l13,58 q-39,16 -78,0 Z" fill="${c}"/>${collar}`;
+}
+function avatar(s){const sk=s.skin; return `
+  <rect x="96" y="198" width="12" height="30" rx="6" fill="${sk}"/><rect x="112" y="198" width="12" height="30" rx="6" fill="${sk}"/>
+  <rect x="90" y="222" width="20" height="14" rx="6" fill="#6B5BD2"/><rect x="110" y="222" width="20" height="14" rx="6" fill="#6B5BD2"/>
+  ${torso(s.outfit,s.shirt)}
+  <g transform="rotate(9 80 160)"><rect x="73" y="156" width="14" height="46" rx="7" fill="${sk}"/></g>
+  <g transform="rotate(-9 152 160)"><rect x="145" y="156" width="14" height="46" rx="7" fill="${sk}"/></g>
+  <circle cx="72" cy="201" r="9" fill="${sk}"/><circle cx="148" cy="201" r="9" fill="${sk}"/>
+  <circle cx="58" cy="108" r="9" fill="${sk}"/><circle cx="162" cy="108" r="9" fill="${sk}"/>
+  <circle cx="110" cy="104" r="54" fill="${sk}"/>
+  <ellipse cx="110" cy="150" rx="40" ry="14" fill="#000" opacity=".04"/>
+  <circle cx="80" cy="124" r="8" fill="#F7A8A8" opacity=".7"/><circle cx="140" cy="124" r="8" fill="#F7A8A8" opacity=".7"/>
+  ${eyes(s.eye)}${freckles(s.freckles)}
+  <path d="M99,128 Q110,138 121,128" fill="none" stroke="#B5635A" stroke-width="3" stroke-linecap="round"/>
+  ${glasses(s.glasses)}${hair(s.hairStyle,s.hairColor)}${headwear(s.headwear)}`;
+}
+function companion(kind){const T='transform="translate(60,4)"';
+  if(kind==="Bunny"){const c="#EFEFEF",st='stroke="#DADADA" stroke-width="1"';
+    return `<g ${T}><ellipse cx="172" cy="176" rx="6" ry="18" fill="${c}" ${st}/><ellipse cx="186" cy="176" rx="6" ry="18" fill="${c}" ${st}/><ellipse cx="172" cy="178" rx="2.6" ry="11" fill="#F6BFD0"/><ellipse cx="186" cy="178" rx="2.6" ry="11" fill="#F6BFD0"/><ellipse cx="179" cy="224" rx="15" ry="14" fill="${c}" ${st}/><circle cx="179" cy="198" r="16" fill="${c}" ${st}/><circle cx="174" cy="198" r="2.2" fill="#2A2622"/><circle cx="184" cy="198" r="2.2" fill="#2A2622"/><circle cx="179" cy="203" r="2" fill="#F18FB0"/></g>`;}
+  if(kind==="Fox"){const o="#E8893E",w="#FBEFE2",d="#C96A2A";
+    return `<g ${T}><path d="M192,224 C210,219 215,205 205,199 C212,210 205,221 192,229 Z" fill="${o}"/><ellipse cx="206" cy="202" rx="5" ry="5" fill="${w}"/><ellipse cx="179" cy="223" rx="15" ry="13" fill="${o}"/><path d="M168,191 L163,175 L177,186 Z" fill="${o}"/><path d="M190,191 L195,175 L181,186 Z" fill="${o}"/><path d="M170,189 L167,179 L176,187 Z" fill="${d}"/><path d="M188,189 L191,179 L182,187 Z" fill="${d}"/><circle cx="179" cy="199" r="15" fill="${o}"/><ellipse cx="179" cy="205" rx="9" ry="7" fill="${w}"/><circle cx="173" cy="197" r="2.1" fill="#2A2622"/><circle cx="185" cy="197" r="2.1" fill="#2A2622"/><ellipse cx="179" cy="201" rx="2.2" ry="1.8" fill="#2A2622"/></g>`;}
+  if(kind==="Puppy"){const b="#C98A5A",e="#A6764A",sn="#E8C29A";
+    return `<g ${T}><ellipse cx="166" cy="201" rx="5.5" ry="12" fill="${e}"/><ellipse cx="192" cy="201" rx="5.5" ry="12" fill="${e}"/><ellipse cx="179" cy="223" rx="15" ry="13" fill="${b}"/><circle cx="179" cy="199" r="15" fill="${b}"/><ellipse cx="185" cy="195" rx="7" ry="7" fill="${e}"/><ellipse cx="179" cy="205" rx="8" ry="6" fill="${sn}"/><ellipse cx="179" cy="202" rx="2.4" ry="2" fill="#3A2A20"/><circle cx="173" cy="197" r="2" fill="#2A2622"/><circle cx="185" cy="197" r="2" fill="#2A2622"/></g>`;}
+  const g="#9AA3AD",wk='stroke="#7A828C" stroke-width="1" stroke-linecap="round"';
+  return `<g ${T}><path d="M193,225 C211,224 213,207 203,200" fill="none" stroke="${g}" stroke-width="9" stroke-linecap="round"/><ellipse cx="179" cy="223" rx="14" ry="13" fill="${g}"/><path d="M168,190 L165,175 L177,185 Z" fill="${g}"/><path d="M190,190 L193,175 L181,185 Z" fill="${g}"/><path d="M170,188 L168,180 L176,186 Z" fill="#F6BFD0"/><path d="M188,188 L190,180 L182,186 Z" fill="#F6BFD0"/><circle cx="179" cy="199" r="15" fill="${g}"/><circle cx="173" cy="198" r="2.1" fill="#2A2622"/><circle cx="185" cy="198" r="2.1" fill="#2A2622"/><path d="M179,202 l-2.5,2.5 h5 Z" fill="#F18FB0"/><line x1="171" y1="203" x2="159" y2="200" ${wk}/><line x1="171" y1="205" x2="158" y2="205" ${wk}/><line x1="171" y1="207" x2="159" y2="210" ${wk}/><line x1="187" y1="203" x2="199" y2="200" ${wk}/><line x1="187" y1="205" x2="200" y2="205" ${wk}/><line x1="187" y1="207" x2="199" y2="210" ${wk}/></g>`;
+}
+/* anchors (feet-center) for placing/flipping in the scene */
+const AV_ANCHOR=[110,232], CO_ANCHOR=[239,240];
+
+/* ---------- state + persistence ---------- */
+const REDUCE=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const LS={ get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}}, set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){memFallback[k]=v;}} };
+let memFallback={};
+function defaultChild(){return {name:"",friend2:"",skin:skins[1],eye:eyeCols[0],freckles:"None",glasses:"None",hairStyle:"Curly",hairColor:hairCs[1],headwear:"None",outfit:"Tee",shirt:shirts[0],pet:"Bunny",
+  favoriteColor:{word:"Green",hex:shirts[2]},age:4,voicePace:1.0,voicePitch:1.15,muteLearningTalk:false,windDownMinutes:10};}
+let child = LS.get("oncePuponAYou.child") || memFallback["oncePuponAYou.child"];
+let progress = LS.get("oncePuponAYou.progress") || memFallback["oncePuponAYou.progress"] || {bloomedFlowers:[],berryJarFill:0,nameSignpostPlanted:false,totalSessions:0,lastVisit:null,schoolStars:0};
+let session={completed:[], skyBrightness:0};
+function saveChild(){ child.favoriteColor.hex = shirts[colorWords.indexOf(child.favoriteColor.word)]||shirts[2]; LS.set("oncePuponAYou.child",child); }
+function saveProgress(){ LS.set("oncePuponAYou.progress",progress); }
+
+/* ---------- audio (Web Audio synth, warm) ---------- */
+let AC=null,master=null,filter=null;
+function initAudio(){ if(AC)return; try{ AC=new (window.AudioContext||window.webkitAudioContext)(); filter=AC.createBiquadFilter(); filter.type="lowpass"; filter.frequency.value=3200;
+  master=AC.createGain(); master.gain.value=0.9; filter.connect(master); master.connect(AC.destination);}catch(e){} }
+let soundOn=true;
+function tone(f,d,type,v,delay){ if(!AC||!soundOn)return; const o=AC.createOscillator(),g=AC.createGain(),st=AC.currentTime+(delay||0);
+  o.type=type||"sine"; o.frequency.value=f; g.gain.setValueAtTime(.0001,st); g.gain.exponentialRampToValueAtTime(v||.12,st+.03); g.gain.exponentialRampToValueAtTime(.0001,st+d);
+  o.connect(g); g.connect(filter); o.start(st); o.stop(st+d+.05); }
+function chimeUp(){ [262,330,392].forEach((f,i)=>tone(f,.3,"sine",.12,i*.07)); }
+function boop(){ tone(220,.2,"sine",.06); }
+function countTone(n){ tone(300+n*60,.18,"sine",.12); }
+function bloomSfx(){ if(!AC||!soundOn)return; const o=AC.createOscillator(),g=AC.createGain(),st=AC.currentTime; o.type="sine"; o.frequency.setValueAtTime(400,st); o.frequency.exponentialRampToValueAtTime(1200,st+.4); g.gain.setValueAtTime(.0001,st); g.gain.exponentialRampToValueAtTime(.1,st+.04); g.gain.exponentialRampToValueAtTime(.0001,st+.45); o.connect(g); g.connect(filter); o.start(st); o.stop(st+.5); }
+function petSfx(kind){ const m={Bunny:[660,.1],Fox:[520,.14],Cat:[700,.12],Puppy:[300,.16]}[kind]||[600,.12]; tone(m[0],m[1],"triangle",.12); tone(m[0]*1.3,m[1],"triangle",.08,.08); }
+
+/* ---------- voice (speechSynthesis) ---------- */
+const Voice=(()=>{ let voice=null, q=[], speaking=false, lastIdx={};
+  function selectVoice(){ const vs=speechSynthesis.getVoices(); if(!vs.length)return null;
+    const pref=["Samantha","Karen","Moira","Tessa","Google UK English Female","Google US English","Microsoft Aria","Microsoft Jenny"];
+    for(const p of pref){ const v=vs.find(v=>v.name.indexOf(p)>=0); if(v)return v; }
+    return vs.find(v=>/female/i.test(v.name)) || vs.find(v=>v.lang&&v.lang.indexOf("en")===0) || vs[0]; }
+  function fill(t){ return t.replace(/\{name\}/g,child&&child.name?child.name:"friend").replace(/\{friend\}/g,child?friendName[child.pet]:"Pip").replace(/\{friend2\}/g,child&&child.friend2?child.friend2:"").replace(/\{color\}/g,child?child.favoriteColor.word:"green"); }
+  function run(){ if(speaking||!q.length)return; const job=q.shift(); speaking=true;
+    if(!("speechSynthesis" in window)||!soundOn){ showCap(job.text); setTimeout(()=>{speaking=false; if(job.cb)job.cb(); run();}, Math.min(4200,900+job.text.length*45)); return; }
+    if(!voice)voice=selectVoice(); const parts=fill(job.text).split("...").map(s=>s.trim()).filter(Boolean); let i=0;
+    showCap(fill(job.text));
+    (function next(){ if(i>=parts.length){ hideCap(); speaking=false; if(job.cb)job.cb(); run(); return; }
+      const chunk=parts[i++]; const u=new SpeechSynthesisUtterance(chunk); if(voice)u.voice=voice; u.rate=(child?child.voicePace:1)*(windingDown?0.82:1)*(job.ambient?0.9:1); u.pitch=child?child.voicePitch:1.15;
+      let advanced=false; const adv=()=>{ if(advanced)return; advanced=true; setTimeout(next,150); };
+      u.onend=adv; u.onerror=adv; setTimeout(adv, 1400+chunk.length*95); // watchdog: never permanently stall if onend doesn't fire
+      try{speechSynthesis.speak(u);}catch(e){adv();} })();
+  }
+  return { speak(text,opt){ opt=opt||{}; if(opt.learning && child && child.muteLearningTalk)return (opt.cb&&opt.cb());
+      if(opt.solo){ q=[]; try{speechSynthesis.cancel();}catch(e){} speaking=false; } q.push({text,cb:opt.cb,ambient:opt.ambient}); run(); },
+    line(arr,opt){ if(!arr||!arr.length)return; let i; do{ i=Math.floor(Math.random()*arr.length);}while(arr.length>1&&i===lastIdx[arr]); lastIdx[arr]=i; this.speak(arr[i],opt); },
+    warm(){ try{ speechSynthesis.getVoices(); }catch(e){} } };
+})();
+if("speechSynthesis" in window){ speechSynthesis.onvoiceschanged=()=>Voice.warm(); }
+let capT=null;
+function showCap(t){ const s=document.getElementById("say"); s.textContent=t; s.classList.add("show"); clearTimeout(capT); capT=setTimeout(()=>s.classList.remove("show"),Math.max(2600,t.length*55)); }
+function hideCap(){ }
+
+/* ---------- voice line sets ---------- */
+const LINES={
+  reveal:["{name}! You're here! This is your very own meadow... and I've been waiting just for you.","Sparkle, sparkle... it's {name}'s meadow now! Hi, {name}!","Look, {name}! The flowers, the sky, the sun... all of it is yours. Welcome to your meadow!"],
+  greeting:["Hi {name}! It's me, {friend}. Want to play?","You're back, {name}! Yay! Come, let's go.","Oh, {name}'s here! The best part of my day."],
+  encourage:["You can do it, {name}. Take your time.","No rush at all. The meadow waits for you.","I believe in you, {name}."],
+  success:["YES! You did it, {name}!","That's it! A flower bloomed just for you!","Whee! The sky got brighter because of you, {name}!"],
+  redirect:["Oooh, good try! That one's something else. Let's listen again.","Not quite — but I love that you're looking! The right one is glowing now... give it a tap.","Good eyes, {name}! Try the one that's twinkling."],
+  idle:["I'm right here whenever you're ready, {name}.","Ooo, did you see that butterfly? Let's go say hi.","The flowers are waving at you. Tap a spot and let's walk!"],
+  windDown:["The sun is getting sleepy, {name}... let's watch it tuck in.","Sleepy meadow time. Goodnight, sun. Goodnight, {name}.","We can play again soon. Sweet dreams, {name}. {friend} will be right here."],
+  daily:["Look, {name}! While you were away, a new flower bloomed!","Welcome back, {name}! A little visitor came to your meadow.","Good to see you, {name}! Your meadow missed you."]
+};
+
+/* ============================================================
+   SCENE: place avatar/companion, tap-to-walk, idle bob
+   ============================================================ */
+const S=document.getElementById("scene");
+const avatarWrap=document.getElementById("avatarWrap"), companionWrap=document.getElementById("companionWrap");
+const avShadow=document.getElementById("avShadow"), compShadow=document.getElementById("compShadow");
+let av={x:240,y:284,face:1}, walk=null;          // avatar feet pos
+function placeAvatar(bob){ const y=av.y+(bob||0); avatarWrap.setAttribute("transform",`translate(${av.x.toFixed(1)},${y.toFixed(1)}) scale(${av.face},1) translate(${-AV_ANCHOR[0]},${-AV_ANCHOR[1]})`);
+  avShadow.setAttribute("cx",av.x); avShadow.setAttribute("cy",av.y+2); }
+function placeCompanion(bob){ const cx=av.x+58, cy=av.y+4+(bob||0); companionWrap.setAttribute("transform",`translate(${cx.toFixed(1)},${cy.toFixed(1)}) translate(${-CO_ANCHOR[0]},${-CO_ANCHOR[1]})`);
+  compShadow.setAttribute("cx",av.x+58); compShadow.setAttribute("cy",av.y+6); }
+function renderAvatar(){ document.getElementById("avatar").innerHTML=avatar(child); document.getElementById("companion").innerHTML=companion(child.pet); }
+
+function svgPoint(evt){ const pt=S.createSVGPoint(); pt.x=evt.clientX; pt.y=evt.clientY; const m=S.getScreenCTM(); return m?pt.matrixTransform(m.inverse()):{x:240,y:284}; }
+function walkTo(x,y){ x=Math.max(34,Math.min(446,x)); y=Math.max(206,Math.min(322,y)); av.face=(x>=av.x?1:-1);
+  if(REDUCE){ av.x=x; av.y=y; placeAvatar(); placeCompanion(); return; }
+  const sx=av.x,sy=av.y, dist=Math.hypot(x-sx,y-sy), dur=Math.max(300,Math.min(820,dist*8)); walk={sx,sy,x,y,t:0,dur}; }
+let bobT=0, idleClock=0, lastInteract=performance.now();
+function loop(now){ const dt=16; bobT+=0.045;
+  if(walk){ walk.t+=dt; let k=Math.min(1,walk.t/walk.dur); const e=k<.5?2*k*k:1-Math.pow(-2*k+2,2)/2;
+    av.x=walk.sx+(walk.x-walk.sx)*e; av.y=walk.sy+(walk.y-walk.sy)*e; if(k>=1){ av.x=walk.x; av.y=walk.y; walk=null; squash(); } }
+  const b=REDUCE?0:Math.sin(bobT)*2.2, b2=REDUCE?0:Math.sin(bobT+0.9)*2.4;
+  placeAvatar(walk?0:b); placeCompanion(b2);
+  if(place==="playground"&&playmates.length)updatePlaymates();
+  // idle nudge
+  if(state==="play"&&!activeActivity&&!walk){ if(now-lastInteract>26000){ lastInteract=now; Voice.line(LINES.idle,{ambient:true}); spawnButterfly(); } }
+  requestAnimationFrame(loop);
+}
+let squashT=0;
+function squash(){ if(REDUCE)return; const g=document.getElementById("avatar"); g.style.transition="transform .12s"; g.style.transformOrigin="110px 232px"; g.style.transform="scaleY(.94)"; setTimeout(()=>{g.style.transform="scaleY(1.02)"; setTimeout(()=>g.style.transform="",120);},120);
+  companionHop(); }
+function companionHop(){ if(REDUCE)return; const g=document.getElementById("companion"); g.style.transition="transform .15s"; g.style.transformOrigin="239px 240px"; g.style.transform="scale(1.08)"; setTimeout(()=>g.style.transform="",170); }
+
+/* walk sparkle + particles */
+function sparkleAt(x,y){ if(REDUCE)return; const fx=document.getElementById("fx"); const g=document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.innerHTML=`<circle r="14" fill="none" stroke="var(--accent)" stroke-width="2.5"/><circle r="9" fill="none" stroke="var(--violet)" stroke-width="2"/><circle r="4" fill="none" stroke="var(--gold)" stroke-width="2"/>`+
+    [0,60,120,180,240,300].map(a=>`<line x1="0" y1="0" x2="${Math.cos(a*Math.PI/180)*16}" y2="${Math.sin(a*Math.PI/180)*16}" stroke="var(--gold)" stroke-width="1.5"/>`).join("");
+  g.setAttribute("transform",`translate(${x},${y}) scale(0.2)`); g.style.transition="transform .2s, opacity .35s"; g.style.opacity="1"; fx.appendChild(g);
+  requestAnimationFrame(()=>g.setAttribute("transform",`translate(${x},${y}) scale(1)`)); setTimeout(()=>{g.style.opacity="0";},650); setTimeout(()=>g.remove(),1000); }
+function burst(x,y,cols){ if(REDUCE)return; const fx=document.getElementById("fx"); for(let i=0;i<10;i++){ const p=document.createElementNS("http://www.w3.org/2000/svg","circle"); const a=Math.random()*6.28,d=14+Math.random()*22; p.setAttribute("r",2+Math.random()*2.5); p.setAttribute("fill",(cols||["#FBE08A","#A98BD6","#EF8FB8","#7FC889"])[i%4]); p.setAttribute("cx",x); p.setAttribute("cy",y); p.style.transition="transform .6s ease-out, opacity .6s"; fx.appendChild(p); requestAnimationFrame(()=>{ p.setAttribute("transform",`translate(${Math.cos(a)*d},${Math.sin(a)*d-10})`); p.style.opacity="0"; }); setTimeout(()=>p.remove(),650); } }
+
+/* ============================================================
+   PROGRESS blooms + ambient
+   ============================================================ */
+function flowerBudSVG(open,col){ if(!open) return `<circle cx="0" cy="0" r="6" fill="#8FBF6A"/><ellipse cx="0" cy="-7" rx="4" ry="7" fill="#A7D585"/>`;
+  return `<circle cx="0" cy="0" r="40" fill="url(#bloomGlow)"/>`+[0,72,144,216,288].map(a=>`<circle cx="${Math.cos((a-90)*Math.PI/180)*9}" cy="${Math.sin((a-90)*Math.PI/180)*9}" r="7" fill="${col}"/>`).join("")+`<circle cx="0" cy="0" r="5" fill="#FBE08A"/>`; }
+const bloomCols=["#F4C04A","#A98BD6","#EF8FB8"];
+function drawBlooms(){ for(let i=0;i<3;i++){ const open=progress.bloomedFlowers.indexOf(i)>=0; document.getElementById("bloom"+i).innerHTML=flowerBudSVG(open,bloomCols[i]); } }
+function bloomFlower(i){ if(progress.bloomedFlowers.indexOf(i)<0)progress.bloomedFlowers.push(i); saveProgress();
+  const el=document.getElementById("bloom"+i); el.innerHTML=flowerBudSVG(true,bloomCols[i]); if(!REDUCE){ el.style.transition="transform .9s cubic-bezier(.34,1.56,.64,1)"; el.style.transformBox="fill-box"; el.style.transformOrigin="center"; el.style.transform="scale(0)"; requestAnimationFrame(()=>el.style.transform="scale(1)"); }
+  bloomSfx(); burst(0,0); }
+function brightenSky(){ session.skyBrightness=Math.min(1,session.skyBrightness+0.12); const top=document.getElementById("skyTop"); top.setAttribute("stop-color", session.skyBrightness>0.3?"#D8EEFA":"#C3E7F8"); }
+function spawnButterfly(){ const amb=document.getElementById("ambient"); const g=document.createElementNS("http://www.w3.org/2000/svg","g");
+  const x=60+Math.random()*360,y=150+Math.random()*40; g.innerHTML=`<g><path d="M0,0 C-10,-9 -16,-3 -10,4 C-6,7 -2,3 0,0Z" fill="#C9B3F2"/><path d="M0,0 C10,-9 16,-3 10,4 C6,7 2,3 0,0Z" fill="#F6A8C8"/><ellipse cx="0" cy="1" rx="1.4" ry="4" fill="#3A3550"/></g>`;
+  g.setAttribute("transform",`translate(${x},${y})`); amb.appendChild(g); let t=Math.random()*6;
+  (function fly(){ if(!g.isConnected)return; t+=0.03; const nx=x+Math.sin(t)*40, ny=y+Math.cos(t*1.3)*16; g.setAttribute("transform",`translate(${nx.toFixed(1)},${ny.toFixed(1)})`); if(!REDUCE)requestAnimationFrame(fly); })();
+  setTimeout(()=>{ g.style.transition="opacity .8s"; g.style.opacity="0"; setTimeout(()=>g.remove(),900); }, 16000); }
+
+/* ============================================================
+   PLACES: meadow · playground · school  (travel + kid NPCs)
+   ============================================================ */
+const SVGNS="http://www.w3.org/2000/svg";
+const PROPS=document.getElementById("props");
+const placeEls={ playground:document.getElementById("placePlayground"), school:document.getElementById("placeSchool"), house:document.getElementById("placeHouse") };
+let place="meadow"; let playmates=[];   /* playground friends the child has selected to play with */
+const shuffle=a=>{ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+/* seeded RNG so every NPC kid looks the SAME each visit (they become familiar friends) */
+function mulberry(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return((t^t>>>14)>>>0)/4294967296; }; }
+function randomKidState(seed){ const rnd=mulberry(((seed|0)*2654435761>>>0)||1); const p=a=>a[Math.floor(rnd()*a.length)];
+  return {skin:p(skins),eye:p(eyeCols),freckles:p(freckOpt),glasses:(rnd()<0.18?(rnd()<0.5?"Round":"Square"):"None"),hairStyle:p(hairStyles),hairColor:p(hairCs),headwear:p(headOpt),outfit:p(outfits),shirt:p(shirts)}; } /* ~18% of kids wear glasses (was 2/3) */
+const KID_NAMES=["Mia","Leo","Ava","Max","Zoe","Sam","Ivy","Ben","Lily","Theo"];
+const kidName=seed=>KID_NAMES[seed%KID_NAMES.length];
+/* a decorative kid <g>, positioned + scaled by feet anchor; CSS-bob lives on an OUTER wrapper so it can't clobber the position transform */
+function kidNode(seed,x,y,scale,faceLeft,bob){ const wrap=document.createElementNS(SVGNS,"g");
+  if(bob&&!REDUCE){ wrap.setAttribute("class","kidbob"); wrap.style.animationDelay=(((seed*0.37)%2.4)).toFixed(2)+"s"; wrap.style.animationDuration=(2.2+(seed%5)*0.28).toFixed(2)+"s"; }
+  const inner=document.createElementNS(SVGNS,"g"); inner.setAttribute("transform",`translate(${x},${y}) scale(${faceLeft?-scale:scale},${scale}) translate(-110,-232)`); inner.innerHTML=avatar(randomKidState(seed)); wrap.appendChild(inner); wrap.dataset.kid=seed; return wrap; }
+/* a generous invisible tap pad in #props (persists across clearActivity) */
+function tapPad(x,y,r,onTap){ const c=document.createElementNS(SVGNS,"circle"); c.setAttribute("cx",x); c.setAttribute("cy",y); c.setAttribute("r",r); c.setAttribute("fill","transparent"); c.style.cursor="pointer";
+  c.addEventListener("pointerdown",e=>{ e.stopPropagation(); lastInteract=performance.now(); initAudio(); ripple(+c.getAttribute("cx"),+c.getAttribute("cy")); onTap(e); }); PROPS.appendChild(c); return c; }
+function clearProps(){ PROPS.innerHTML=""; }
+/* expanding touch ring — makes it clear WHERE the finger landed (kid-feedback) */
+function ripple(x,y){ if(REDUCE)return; const fx=document.getElementById("fx"); const c=document.createElementNS(SVGNS,"circle"); c.setAttribute("cx",x); c.setAttribute("cy",y); c.setAttribute("r",7); c.setAttribute("fill","none"); c.setAttribute("stroke","var(--accent)"); c.setAttribute("stroke-width","3"); c.style.transition="transform .42s ease-out, opacity .42s"; c.style.transformBox="fill-box"; c.style.transformOrigin="center"; fx.appendChild(c); requestAnimationFrame(()=>{ c.style.transform="scale(3.6)"; c.style.opacity="0"; }); setTimeout(()=>c.remove(),460); }
+/* kid reaction — cycles wave / giggle / play, never nags */
+let kidGreetIdx=0;
+function kidReact(node,name,px,py){ if(node){ const inner=node.firstChild||node; inner.style.transition="transform .18s"; inner.style.transformBox="fill-box"; inner.style.transformOrigin="bottom center"; inner.style.transform="translateY(-8px)"; setTimeout(()=>{inner.style.transform="";},200); }
+  const acts=[ ()=>{ tone(560,.12,"sine",.1); tone(720,.12,"sine",.08,.09); Voice.speak(`Hi {name}! I'm ${name}!`,{solo:true}); },
+               ()=>{ tone(700,.09,"triangle",.09); tone(840,.09,"triangle",.07,.07); Voice.speak("Hee hee hee!",{solo:true}); },
+               ()=>{ tone(620,.12,"sine",.1); Voice.speak("Wanna play, {name}?",{solo:true}); } ];
+  acts[kidGreetIdx++%acts.length](); sparkleAt(px,py-6); }
+
+/* ---- playground ---- */
+const PLAYGROUND_EQUIP=`
+  <g><rect x="40" y="214" width="34" height="9" rx="3" fill="#C99A5A"/><rect x="40" y="222" width="6" height="80" fill="#A6764A"/><rect x="68" y="222" width="6" height="80" fill="#A6764A"/>
+   <rect x="40" y="242" width="34" height="5" rx="2" fill="#C99A5A"/><rect x="40" y="264" width="34" height="5" rx="2" fill="#C99A5A"/><rect x="40" y="286" width="34" height="5" rx="2" fill="#C99A5A"/>
+   <path d="M70,219 C120,236 132,280 152,302 L138,310 C120,288 104,250 58,236 Z" fill="#F4C04A" stroke="#E0982A" stroke-width="2"/></g>
+  <g><line x1="232" y1="302" x2="266" y2="208" stroke="#9AA3AD" stroke-width="6" stroke-linecap="round"/><line x1="312" y1="302" x2="278" y2="208" stroke="#9AA3AD" stroke-width="6" stroke-linecap="round"/>
+   <rect x="246" y="204" width="52" height="8" rx="4" fill="#7A828C"/>
+   <g id="swingArm"><line x1="260" y1="210" x2="260" y2="272" stroke="#7D5638" stroke-width="3"/><line x1="284" y1="210" x2="284" y2="272" stroke="#7D5638" stroke-width="3"/><rect x="254" y="270" width="36" height="8" rx="3" fill="#C98A5A"/></g></g>
+  <g><rect x="372" y="294" width="84" height="6" rx="3" fill="#A6764A"/><rect x="372" y="298" width="84" height="22" rx="7" fill="#C9A06A"/><rect x="378" y="300" width="72" height="15" rx="5" fill="#F2DCA8"/><path d="M414,300 l7,-12 7,12 Z" fill="#F4B94B"/></g>
+  <circle cx="186" cy="314" r="9" fill="#EF8FB8"/><circle cx="338" cy="316" r="8" fill="#5BAEDC"/>`;
+function buildPlayground(){ const g=placeEls.playground; g.innerHTML=PLAYGROUND_EQUIP; clearProps(); playmates=[];
+  const kids=[ [11,118,300,.50,false],[27,168,288,.45,true],[44,206,306,.48,false],[58,360,300,.50,true],[73,404,290,.44,false],[92,150,266,.40,false] ];
+  kids.forEach(([seed,x,y,sc,fl])=>{ const node=kidNode(seed,x,y,sc,fl,true); g.appendChild(node); node.dataset.hx=x; node.dataset.hy=y; node.dataset.sc=sc; node.dataset.fl=fl?"1":"";
+    const cy=y-58*sc; node._pad=tapPad(x,cy,Math.max(28,46*sc),()=>toggleMate(node,seed)); });
+  tapPad(106,262,30,()=>groupPlay("slide")); tapPad(272,250,32,()=>groupPlay("swing")); tapPad(414,302,30,()=>groupPlay("sand")); }
+/* tap a friend to ADD them to your play group (glowing ring + they follow you); tap again to wave bye. Pick as many as you like. */
+function toggleMate(node,seed){ const inner=node.firstChild; const sc=+node.dataset.sc, hx=+node.dataset.hx, hy=+node.dataset.hy;
+  if(node.dataset.sel==="1"){ node.dataset.sel=""; const r=inner.querySelector(".selring"); if(r)r.remove(); playmates=playmates.filter(m=>m.node!==node);
+    inner.setAttribute("transform",`translate(${hx},${hy}) scale(${node.dataset.fl?-sc:sc},${sc}) translate(-110,-232)`); node._pad.setAttribute("cx",hx); node._pad.setAttribute("cy",hy-58*sc);
+    tone(360,.1,"sine",.06); Voice.speak("Bye bye!",{solo:true}); }
+  else { node.dataset.sel="1"; const ring=document.createElementNS(SVGNS,"ellipse"); ring.setAttribute("class","selring"); ring.setAttribute("cx",110); ring.setAttribute("cy",148); ring.setAttribute("rx",80); ring.setAttribute("ry",104); ring.setAttribute("fill","none"); ring.setAttribute("stroke","var(--gold)"); ring.setAttribute("stroke-width","7"); inner.insertBefore(ring,inner.firstChild);
+    playmates.push({node,inner,pad:node._pad,sc,cx:hx,cy:hy}); tone(560,.12,"sine",.1); tone(720,.12,"sine",.08,.09); companionEmote("happy");
+    const n=playmates.length; Voice.speak(n===1?`Yay! ${kidName(seed)} wants to play, {name}!`:`${n} friends are playing! Come on!`,{solo:true}); } }
+/* eased follow: selected friends trail around the child (called from the main loop in the playground) */
+function updatePlaymates(){ for(let i=0;i<playmates.length;i++){ const m=playmates[i]; const dx=(i%2?1:-1)*(48+Math.floor(i/2)*30); const tx=Math.max(40,Math.min(444,av.x+dx)), ty=av.y-(i%2)*3;
+    m.cx+=(tx-m.cx)*0.09; m.cy+=(ty-m.cy)*0.09; const fl=m.cx>av.x; m.inner.setAttribute("transform",`translate(${m.cx.toFixed(1)},${m.cy.toFixed(1)}) scale(${fl?-m.sc:m.sc},${m.sc}) translate(-110,-232)`);
+    if(m.pad){ m.pad.setAttribute("cx",m.cx.toFixed(1)); m.pad.setAttribute("cy",(m.cy-58*m.sc).toFixed(1)); } } }
+function groupPlay(kind){ if(kind==="swing")swingPlay(); else if(kind==="slide")slidePlay(); else sandPlay();
+  if(playmates.length>=1){ [523,659,784].forEach((f,i)=>tone(f,.18,"sine",.1,i*0.08)); burst(av.x,av.y-64,["#FBE08A","#A98BD6","#EF8FB8","#7FC889"]); playmates.forEach(m=>{ m.cy-=14; }); Voice.speak("Hooray! We're all playing together!",{solo:true}); } }
+function swingPlay(){ const arm=placeEls.playground.querySelector("#swingArm"); if(!arm||arm._sw)return; tone(440,.2,"sine",.08); Voice.speak("Wheee!",{solo:true});
+  arm._sw=true; let t0=null; const dur=3600; function st(ts){ if(t0==null)t0=ts; const k=(ts-t0)/dur; if(k>=1){ arm.setAttribute("transform",""); arm._sw=false; return; } const ang=Math.sin(k*Math.PI*2*2.4)*20*(1-k); arm.setAttribute("transform",`rotate(${ang.toFixed(2)},272,208)`); requestAnimationFrame(st); } requestAnimationFrame(st); }
+function slidePlay(){ const g=placeEls.playground; tone(520,.1,"sine",.08); const kid=kidNode(777,57,224,.42,false,false); g.appendChild(kid); const inner=kid.firstChild;
+  const dur=1000,x0=57,y0=224,x1=152,y1=304; let t0=null; function st(ts){ if(t0==null)t0=ts; let k=Math.min(1,(ts-t0)/dur); const e=k*k; const x=x0+(x1-x0)*e,y=y0+(y1-y0)*e; inner.setAttribute("transform",`translate(${x.toFixed(1)},${y.toFixed(1)}) scale(.42) translate(-110,-232)`); if(k<1)requestAnimationFrame(st); else { tone(720,.12,"triangle",.08); Voice.speak("Wheee!",{solo:true}); setTimeout(()=>kid.remove(),500); } } requestAnimationFrame(st); }
+function sandPlay(){ tone(360,.12,"triangle",.08); tone(300,.12,"triangle",.06,.08); sparkleAt(414,302); Voice.speak("Hee hee, sandy!",{solo:true}); }
+
+/* ---- house (cozy home interior) ---- */
+const HOUSE_DECOR=`
+  <rect id="houseWall" x="0" y="0" width="480" height="214" fill="#F3E1CE"/>
+  <rect x="0" y="206" width="480" height="134" fill="#D8B486"/><rect x="0" y="200" width="480" height="9" fill="#C29A6A"/>
+  <g><rect x="58" y="40" width="98" height="78" rx="4" fill="#BFE6F7" stroke="#fff" stroke-width="6"/><line x1="107" y1="40" x2="107" y2="118" stroke="#fff" stroke-width="5"/><line x1="58" y1="79" x2="156" y2="79" stroke="#fff" stroke-width="5"/><circle cx="136" cy="60" r="9" fill="#FBE08A"/></g>
+  <g><rect x="300" y="44" width="92" height="62" rx="4" fill="#fff" stroke="#C9A06A" stroke-width="5"/><text id="houseName" x="346" y="85" text-anchor="middle" font-size="22" font-weight="800" fill="var(--violet)" font-family="inherit"></text></g>
+  <g id="houseShelf"><rect x="404" y="120" width="60" height="98" rx="3" fill="#A6764A"/><rect x="408" y="124" width="52" height="6" fill="#8C5E38"/>
+    ${[0,1,2,3].map(i=>`<rect x="${410+i*13}" y="134" width="10" height="34" rx="2" fill="${["#EF8FB8","#5BAEDC","#7FC889","#F4B94B"][i]}"/>`).join("")}
+    <rect x="408" y="172" width="52" height="6" fill="#8C5E38"/>${[0,1,2,3].map(i=>`<rect x="${410+i*13}" y="182" width="10" height="30" rx="2" fill="${["#A98BD6","#F47C7C","#5BAEDC","#7FC889"][i]}"/>`).join("")}<rect x="408" y="212" width="52" height="6" fill="#8C5E38"/></g>
+  <ellipse cx="240" cy="306" rx="120" ry="26" fill="#EFC9A0" opacity=".8"/><ellipse cx="240" cy="306" rx="92" ry="18" fill="#E3B07E" opacity=".55"/>
+  <g><rect x="150" y="234" width="120" height="40" rx="12" fill="#A98BD6"/><rect x="146" y="222" width="20" height="52" rx="10" fill="#9678C8"/><rect x="254" y="222" width="20" height="52" rx="10" fill="#9678C8"/><rect x="161" y="242" width="46" height="22" rx="8" fill="#C9B3F2"/><rect x="214" y="242" width="46" height="22" rx="8" fill="#C9B3F2"/></g>
+  <g><rect x="42" y="188" width="6" height="122" fill="#9A6B3C"/><path d="M28,150 h32 l-6,30 h-20 Z" fill="#FBE08A"/><ellipse id="lampGlow" cx="44" cy="168" rx="46" ry="46" fill="url(#bloomGlow)" opacity="0"/></g>
+  <g id="houseToys"><rect x="300" y="278" width="64" height="38" rx="6" fill="#5BAEDC"/><rect x="300" y="272" width="64" height="12" rx="5" fill="#3E97C8"/><circle cx="332" cy="284" r="3" fill="#F4C04A"/></g>
+  <g><ellipse cx="416" cy="302" rx="34" ry="13" fill="#EFC9A0"/><ellipse cx="416" cy="300" rx="26" ry="9" fill="#E3B07E"/></g>`;
+let lampOn=false;
+function buildHouse(){ const g=placeEls.house; clearProps(); g.innerHTML=HOUSE_DECOR; lampOn=false;
+  const nm=g.querySelector("#houseName"); if(nm)nm.textContent=(child.name||"You").slice(0,8);
+  tapPad(332,288,32,()=>{ burst(332,284,["#EF8FB8","#5BAEDC","#7FC889","#F4B94B"]); sparkleAt(332,280); tone(620,.1,"triangle",.09); Voice.speak("Toys! Hee hee!",{solo:true}); });
+  tapPad(434,166,36,()=>{ if(!activeActivity&&!windingDown){ Voice.speak("Story time! Let's read your name, {name}!",{solo:true}); setTimeout(startMyName,300); } });
+  tapPad(44,166,30,()=>houseLamp());
+  tapPad(346,76,32,()=>{ tone(523,.18,"sine",.1); sparkleAt(346,92); Voice.speak("That's you, {name}!",{solo:true}); });
+  tapPad(416,300,30,()=>{ tone(300,.2,"sine",.07); companionEmote("happy"); Voice.speak("Cozy time! Yawn...",{solo:true}); }); }
+function houseLamp(){ lampOn=!lampOn; const g=placeEls.house; const glow=g.querySelector("#lampGlow"); if(glow)glow.setAttribute("opacity",lampOn?".7":"0"); const wall=g.querySelector("#houseWall"); if(wall)wall.setAttribute("fill",lampOn?"#F6D9BE":"#F3E1CE"); tone(lampOn?660:330,.18,"sine",.1); Voice.speak(lampOn?"Cozy light!":"Lights off!",{solo:true}); }
+
+/* ---- school ---- */
+const SCHOOL_BACK=`
+  <g><rect x="300" y="120" width="120" height="76" fill="#E07A6A"/><path d="M292,121 L360,84 L428,121 Z" fill="#B6503F"/>
+   <rect x="352" y="150" width="26" height="46" rx="2" fill="#8C4636"/><circle cx="372" cy="174" r="2" fill="#F4C04A"/>
+   <rect x="312" y="138" width="20" height="18" rx="2" fill="#FBEFCB"/><rect x="392" y="138" width="20" height="18" rx="2" fill="#FBEFCB"/>
+   <rect x="356" y="76" width="8" height="12" fill="#B6503F"/><circle cx="360" cy="74" r="6" fill="#F4C04A"/></g>
+  <g><rect x="22" y="116" width="124" height="88" rx="6" fill="#3B5249"/><rect x="22" y="116" width="124" height="88" rx="6" fill="none" stroke="#C9A06A" stroke-width="6"/>
+   <rect x="40" y="204" width="8" height="26" fill="#A6764A"/><rect x="120" y="204" width="8" height="26" fill="#A6764A"/><g id="chalkGlyph"></g></g>
+  <g id="schoolStars"></g>`;
+function deskSVG(dx){ return `<g><rect x="${dx-28}" y="288" width="56" height="9" rx="2" fill="#D9A66A"/><rect x="${dx-26}" y="297" width="52" height="16" rx="3" fill="#C28C4E"/><rect x="${dx-24}" y="297" width="5" height="22" fill="#9A6B3C"/><rect x="${dx+19}" y="297" width="5" height="22" fill="#9A6B3C"/></g>`; }
+function buildSchool(){ const g=placeEls.school; clearProps(); g.innerHTML=SCHOOL_BACK;
+  const mates=[ [201,266,304,.46,true],[202,392,304,.46,true] ];
+  const nodes=mates.map(([seed,x,y,sc,fl])=>{ const node=kidNode(seed,x,y,sc,fl,false); g.appendChild(node); return {node,seed,x,y,sc}; });
+  g.insertAdjacentHTML("beforeend", deskSVG(150)+deskSVG(266)+deskSVG(392));
+  nodes.forEach(k=>{ const cy=k.y-54*k.sc; tapPad(k.x,cy,Math.max(24,40*k.sc),()=>kidReact(k.node,kidName(k.seed),k.x,cy)); });
+  tapPad(150,296,36,()=>{ if(!activeActivity&&!windingDown){ Voice.speak("Let's learn, {name}!",{solo:true}); offerActivity(); } });
+  drawSchoolStars(); }
+function setChalk(html){ const c=placeEls.school.querySelector("#chalkGlyph"); if(c)c.innerHTML=html; }
+function chalkTarget(txt){ const s=String(txt), fs=s.length<=2?58:(s.length<=3?44:34), y=s.length<=2?178:170; setChalk(`<text x="84" y="${y}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="#F4F1E8" font-family="inherit">${s}</text>`); }
+function drawSchoolStars(){ const w=placeEls.school.querySelector("#schoolStars"); if(!w)return; const n=Math.min(10,progress.schoolStars||0);
+  w.innerHTML=Array.from({length:n},(_,i)=>`<g transform="translate(${30+i*22},104)"><path d="M0,-7 l2,5 5,0 -4,4 1.6,5.5 -4.6,-3 -4.6,3 1.6,-5.5 -4,-4 5,0 Z" fill="#F4C04A" stroke="#E0982A" stroke-width="1"/></g>`).join(""); }
+function addSchoolStar(){ progress.schoolStars=(progress.schoolStars||0)+1; saveProgress(); drawSchoolStars(); const w=placeEls.school.querySelector("#schoolStars"); const last=w&&w.lastChild;
+  if(last&&!REDUCE){ last.style.transformBox="fill-box"; last.style.transformOrigin="center"; last.style.transition="transform .5s cubic-bezier(.34,1.56,.64,1)"; last.style.transform="scale(0)"; requestAnimationFrame(()=>last.style.transform="scale(1)"); } tone(660,.18,"sine",.12); }
+
+/* ---- travel between places ---- */
+function navHighlight(){ document.querySelectorAll("#places .travel").forEach(b=>b.classList.toggle("sel", b.dataset.place===place)); }
+function meadowDecor(show){ ["bloom0","bloom1","bloom2","ambient","signpost"].forEach(id=>{ const e=document.getElementById(id); if(e)e.style.display=show?"":"none"; });
+  if(show){ drawBlooms(); if(progress.nameSignpostPlanted)plantSignpost((child.name||"You").replace(/[^A-Za-z]/g,"").slice(0,8)); } }
+function applyPlace(name){ clearActivity(); clearProps(); playmates=[];
+  meadowDecor(name==="meadow"); placeEls.playground.style.display=name==="playground"?"":"none"; placeEls.school.style.display=name==="school"?"":"none"; placeEls.house.style.display=name==="house"?"":"none";
+  if(name!=="playground")placeEls.playground.innerHTML=""; if(name!=="school")placeEls.school.innerHTML=""; if(name!=="house")placeEls.house.innerHTML="";
+  place=name; navHighlight();
+  if(name==="meadow"){ av={x:240,y:284,face:1}; }
+  else if(name==="playground"){ buildPlayground(); av={x:252,y:302,face:1}; }
+  else if(name==="school"){ buildSchool(); av={x:150,y:298,face:1}; }
+  else if(name==="house"){ buildHouse(); av={x:240,y:300,face:1}; }
+  walk=null; placeAvatar(); placeCompanion(); arrivePlace(name); }
+function arrivePlace(name){ if(windingDown)return;
+  if(name==="meadow")Voice.speak("Back home in your meadow, {name}!",{solo:true});
+  else if(name==="playground")Voice.speak("The playground! Tap your friends to play — pick as many as you like, {name}!",{solo:true});
+  else if(name==="house")Voice.speak("Welcome home, {name}! Tap your books, toys and lamp!",{solo:true});
+  else if(name==="school"){ Voice.speak("We're at school! Let's learn, {name}!",{solo:true}); setTimeout(()=>{ if(place==="school"&&!activeActivity&&!windingDown)offerActivity(); },2400); } }
+function goPlace(name){ if(name===place||state!=="play"){ if(state!=="play")return; } initAudio(); lastInteract=performance.now();
+  const sc=document.getElementById("scene"); if(REDUCE){ applyPlace(name); return; }
+  sc.style.transition="opacity .22s"; sc.style.opacity="0"; setTimeout(()=>{ applyPlace(name); sc.style.opacity="1"; },240); }
+
+/* ============================================================
+   ACTIVITY ENGINE  (data-driven, never-fail)
+   ============================================================ */
+const A=document.getElementById("activity"), BANNER=document.getElementById("banner");
+let activeActivity=null;
+function clearActivity(){ A.innerHTML=""; BANNER.innerHTML=""; activeActivity=null; }
+function tgt(word,x,y,cls){ const g=document.createElementNS("http://www.w3.org/2000/svg","g"); g.setAttribute("class","target"); g.setAttribute("transform",`translate(${x},${y})`); g.dataset.word=word; g.style.cursor="pointer";
+  g.innerHTML=drawObject(word); A.appendChild(g); return g; }
+function popObj(g,good){ if(REDUCE)return; g.style.transition="transform .15s"; g.style.transformBox="fill-box"; g.style.transformOrigin="center"; g.style.transform=good?"scale(1.25)":"translateY(4px)"; setTimeout(()=>g.style.transform="",good?260:230); }
+function haloOn(g){ if(g.querySelector(".halo"))return; const h=document.createElementNS("http://www.w3.org/2000/svg","circle"); h.setAttribute("class","halo"); h.setAttribute("r","26"); h.setAttribute("fill","none"); h.setAttribute("stroke","var(--gold)"); h.setAttribute("stroke-width","3"); h.setAttribute("opacity",".9"); g.insertBefore(h,g.firstChild);
+  if(!REDUCE){ h.style.transformBox="fill-box"; h.style.transformOrigin="center"; h.animate?h.animate([{transform:"scale(.8)",opacity:.4},{transform:"scale(1.1)",opacity:.95},{transform:"scale(.8)",opacity:.4}],{duration:1100,iterations:Infinity}):0; } }
+
+function ageLevel(){ return Math.max(0,Math.min(5,(+child.age||4)-3)); } /* age 3→L0 ... 8→L5 — school difficulty */
+const ageBand=()=>{ const L=ageLevel(); return L<=0?"easy":(L===1?"mid":"hard"); }; /* meadow activities: ages 6-8 read as "hard" */
+
+/* drawObject(word): 18 simple flat-SVG meadow objects, centered at origin (~±18px), palette colors. A faint big circle = a generous 4yo-finger hit area. */
+function drawObject(word){
+  const W={
+    Sun:[0,45,90,135,180,225,270,315].map(a=>`<line x1="0" y1="0" x2="${(Math.cos(a*Math.PI/180)*19).toFixed(1)}" y2="${(Math.sin(a*Math.PI/180)*19).toFixed(1)}" stroke="#FBDE7E" stroke-width="3" stroke-linecap="round"/>`).join("")+`<circle r="11" fill="#FBDE7E"/><circle r="8" fill="#FBE08A"/>`,
+    Sock:`<path d="M-6,-16 h11 v17 q0,6 7,6 h5 q6,0 6,-6 v-3 q0,-4 -6,-4 h-9 v-17 Z" fill="#5BAEDC"/><rect x="-6" y="-16" width="11" height="5" fill="#fff"/>`,
+    Star:`<path d="M0,-16 l4.7,9.5 10.5,1.5 -7.6,7.4 1.8,10.4 -9.4,-4.9 -9.4,4.9 1.8,-10.4 -7.6,-7.4 10.5,-1.5 Z" fill="#FBE08A"/>`,
+    Moon:`<path d="M7,-14 A15,15 0 1 0 7,16 A12,12 0 1 1 7,-14 Z" fill="#EFEDFA" stroke="#D8D2EC" stroke-width="1"/>`,
+    Mouse:`<path d="M13,8 q11,1 8,-7" stroke="#9AA3AD" stroke-width="2" fill="none"/><circle cx="-8" cy="-5" r="6" fill="#9AA3AD"/><circle cx="8" cy="-5" r="6" fill="#9AA3AD"/><circle cx="-8" cy="-5" r="3" fill="#F6BFD0"/><circle cx="8" cy="-5" r="3" fill="#F6BFD0"/><ellipse cx="0" cy="4" rx="14" ry="10" fill="#9AA3AD"/><circle cx="-4" cy="2" r="1.6" fill="#2A2622"/><circle cx="4" cy="2" r="1.6" fill="#2A2622"/><circle cx="0" cy="6" r="2" fill="#F18FB0"/>`,
+    Milk:`<path d="M-9,-3 v17 h18 v-17 l-4,-11 h-10 Z" fill="#fff" stroke="#D8D8E0" stroke-width="1.5"/><rect x="-9" y="3" width="18" height="6" fill="#5BAEDC"/>`,
+    Ball:`<circle r="14" fill="#F47C7C"/><path d="M-14,0 h28 M0,-14 v28" stroke="#fff" stroke-width="2.5"/><circle cx="-4" cy="-5" r="3" fill="#fff" opacity=".5"/>`,
+    Butterfly:`<path d="M0,0 C-16,-14 -24,-4 -14,6 C-9,11 -3,5 0,0Z" fill="#C9B3F2"/><path d="M0,0 C16,-14 24,-4 14,6 C9,11 3,5 0,0Z" fill="#F6A8C8"/><ellipse cx="0" cy="1" rx="2" ry="8" fill="#3A3550"/>`,
+    Bird:`<path d="M4,3 q11,-3 13,4 q-9,3 -13,-4Z" fill="#3E97C8"/><ellipse cx="0" cy="3" rx="13" ry="10" fill="#5BAEDC"/><circle cx="-6" cy="-4" r="7" fill="#5BAEDC"/><path d="M-13,-4 l-8,2 8,2 Z" fill="#F4C04A"/><circle cx="-7" cy="-5" r="1.6" fill="#2A2622"/>`,
+    Tree:`<rect x="-4" y="2" width="8" height="15" rx="2" fill="#8A5A33"/><circle cx="0" cy="-6" r="14" fill="#7FC889"/><circle cx="-9" cy="1" r="9" fill="#7FC889"/><circle cx="9" cy="1" r="9" fill="#7FC889"/>`,
+    Tent:`<path d="M0,-14 L17,13 H-17 Z" fill="#F4B94B"/><path d="M0,-14 L0,13" stroke="#D89A2A" stroke-width="2"/><path d="M0,13 L-6,1 L0,-6 Z" fill="#C98A2A"/><path d="M0,-14 l3,-5" stroke="#C98A2A" stroke-width="2"/>`,
+    Turtle:`<ellipse cx="0" cy="2" rx="16" ry="11" fill="#7FC889"/><circle cx="0" cy="0" r="9" fill="#6FBE82"/><path d="M0,-9 v18 M-8,1 h16" stroke="#5BA678" stroke-width="1.5"/><circle cx="15" cy="3" r="5" fill="#9AD585"/><circle cx="16" cy="2" r="1.4" fill="#2A2622"/>`,
+    Flower:`<g fill="#EF8FB8"><circle cx="0" cy="-9" r="5"/><circle cx="8.5" cy="-2.5" r="5"/><circle cx="-8.5" cy="-2.5" r="5"/><circle cx="5.2" cy="7" r="5"/><circle cx="-5.2" cy="7" r="5"/></g><circle r="4.5" fill="#FBE08A"/>`,
+    Fish:`<path d="M9,0 l11,-7 v14 Z" fill="#3E97C8"/><ellipse cx="-2" cy="0" rx="13" ry="9" fill="#5BAEDC"/><circle cx="-8" cy="-2" r="1.8" fill="#2A2622"/>`,
+    Frog:`<ellipse cx="0" cy="4" rx="14" ry="10" fill="#7FC889"/><circle cx="-7" cy="-7" r="6" fill="#7FC889"/><circle cx="7" cy="-7" r="6" fill="#7FC889"/><circle cx="-7" cy="-7" r="2.4" fill="#2A2622"/><circle cx="7" cy="-7" r="2.4" fill="#2A2622"/><path d="M-6,6 q6,5 12,0" stroke="#3E7A4A" stroke-width="2" fill="none"/>`,
+    Pig:`<circle cx="-9" cy="-7" r="4" fill="#F6A8C8"/><circle cx="9" cy="-7" r="4" fill="#F6A8C8"/><ellipse cx="0" cy="2" rx="14" ry="11" fill="#F6A8C8"/><ellipse cx="0" cy="5" rx="6" ry="5" fill="#EF8FB8"/><circle cx="-2.5" cy="5" r="1.3" fill="#C56B92"/><circle cx="2.5" cy="5" r="1.3" fill="#C56B92"/><circle cx="-6" cy="-2" r="1.6" fill="#2A2622"/><circle cx="6" cy="-2" r="1.6" fill="#2A2622"/>`,
+    Pumpkin:`<ellipse cx="0" cy="2" rx="15" ry="12" fill="#F4B94B"/><path d="M-7,-8 v20 M7,-8 v20" stroke="#E0982A" stroke-width="2" fill="none"/><rect x="-2" y="-14" width="4" height="6" rx="1" fill="#7F6A4A"/>`,
+    Pan:`<rect x="10" y="-3" width="17" height="6" rx="3" fill="#5A626C"/><circle r="12" fill="#9AA3AD"/><circle r="8" fill="#7A828C"/>`
+  };
+  return `<circle r="23" fill="#000" opacity="0"/>`+(W[word]||`<circle r="10" fill="#C9B3F2"/>`);
+}
+
+/* ---- SOUND HUNT ---- */
+const HUNTS=[
+ {p:"s",say:"sss",ex:"sun",targets:["Sun","Sock","Star"],decoys:["Ball","Mouse"]},
+ {p:"m",say:"mmm",ex:"moon",targets:["Moon","Mouse","Milk"],decoys:["Sun","Tent"]},
+ {p:"f",say:"fff",ex:"fish",targets:["Flower","Fish","Frog"],decoys:["Ball","Pig"]},
+ {p:"b",say:"b",ex:"ball",targets:["Ball","Butterfly","Bird"],decoys:["Pan","Sock"]},
+ {p:"t",say:"t",ex:"tree",targets:["Tree","Tent","Turtle"],decoys:["Moon","Flower"]},
+ {p:"p",say:"p",ex:"pig",targets:["Pig","Pumpkin","Pan"],decoys:["Sock","Tree"]}
+];
+let huntIdx=0;
+function spawnAt(words){ const spots=[[90,190],[170,168],[250,176],[330,166],[400,192],[140,224],[300,228],[210,150]]; const used=[]; const out=[];
+  words.forEach(w=>{ let s; do{ s=spots[Math.floor(Math.random()*spots.length)]; }while(used.indexOf(s)>=0&&used.length<spots.length); used.push(s); out.push(tgt(w,s[0],s[1])); }); return out; }
+function startSoundHunt(){ clearActivity(); const band=ageBand(); let hunt;
+  // easy = continuants only
+  if(band==="easy"){ const cont=HUNTS.filter(h=>["s","m","f"].indexOf(h.p)>=0); hunt=cont[huntIdx%cont.length]; } else { hunt=HUNTS[huntIdx%HUNTS.length]; }
+  huntIdx++;
+  const nTarg = band==="easy"?1:3; const nDec = band==="easy"?2:(band==="hard"?3:2);
+  const targets=hunt.targets.slice(0,nTarg), decoys=hunt.decoys.slice(0,nDec);
+  let need=targets.length, misses=0;
+  const all=[...targets,...decoys].sort(()=>Math.random()-0.5);
+  const nodes=spawnAt(all);
+  // treasure banner slots
+  BANNER.innerHTML=`<rect x="150" y="8" width="180" height="30" rx="15" fill="#F7F5FF" opacity=".9"/>`+targets.map((t,i)=>`<circle cx="${172+i*40}" cy="23" r="12" fill="#EAE6FA"/>`).join("");
+  activeActivity={type:"soundHunt"};
+  const intro=`Let's play a listening game, {name}! Listen... I hear ${hunt.say}. ${hunt.say}, like ${hunt.ex}. Tap something that goes ${hunt.say}!`;
+  Voice.speak(intro,{learning:true});
+  let found=0, idleTimer;
+  function resetIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(scaffold,8500); }
+  function scaffold(){ const left=nodes.find(n=>n.isConnected&&targets.indexOf(n.dataset.word)>=0&&!n.dataset.found); if(left){ haloOn(left); Voice.speak(`Listen again... ${hunt.say}. It's twinkling over here!`,{learning:true}); } resetIdle(); }
+  resetIdle();
+  nodes.forEach(g=>{ g.addEventListener("pointerdown",e=>{ e.stopPropagation(); lastInteract=performance.now(); resetIdle();
+    const isTarget=targets.indexOf(g.dataset.word)>=0;
+    if(isTarget&&!g.dataset.found){ g.dataset.found="1"; popObj(g,true); chimeUp(); sparkleAt(0,0); const c=BANNER.querySelectorAll("circle")[found]; if(c)c.setAttribute("fill","var(--gold)"); found++;
+      Voice.speak(`Yes! ${g.dataset.word}! ${g.dataset.word} starts with ${hunt.say}!`,{learning:true});
+      g.style.transition="transform .5s, opacity .5s"; g.style.transform="translateY(-120px) scale(.5)"; setTimeout(()=>g.remove(),520);
+      if(found>=need){ clearTimeout(idleTimer); setTimeout(finishActivity,900); } }
+    else if(!isTarget){ misses++; popObj(g,false); boop(); companionEmote("think"); Voice.line(LINES.redirect,{}); if(misses>=2)scaffold(); }
+  }); });
+}
+
+/* ---- BERRY COUNT ---- */
+function startBerryCount(){ clearActivity(); const band=ageBand(); const max=band==="easy"?3:(band==="hard"?9:5); const n=2+Math.floor(Math.random()*(max-1));
+  // bush
+  const bush=document.createElementNS("http://www.w3.org/2000/svg","g"); bush.setAttribute("transform","translate(300,250)");
+  bush.innerHTML=`<circle cx="-22" cy="6" r="34" fill="#5BA678"/><circle cx="22" cy="6" r="34" fill="#5BA678"/><circle cx="0" cy="-14" r="36" fill="#6FBE82"/><circle cx="0" cy="2" r="30" fill="#98CE6F" opacity=".4"/>`; A.appendChild(bush);
+  let count=0; const berries=[];
+  for(let i=0;i<n;i++){ const a=-90+(i-(n-1)/2)*34; const bx=300+Math.cos(a*Math.PI/180)*30, by=242+Math.sin(a*Math.PI/180)*22;
+    const g=document.createElementNS("http://www.w3.org/2000/svg","g"); g.setAttribute("transform",`translate(${bx},${by})`); g.style.cursor="pointer"; g.dataset.berry="1";
+    g.innerHTML=`<circle r="8" fill="#F47C7C"/><circle cx="-2.5" cy="-2.5" r="2.5" fill="#fff" opacity=".7"/><path d="M0,-8 q3,-4 6,-4" stroke="#5BA678" stroke-width="2" fill="none"/>`; A.appendChild(g); berries.push(g); }
+  activeActivity={type:"berryCount"};
+  Voice.speak("Look at this bush, {name} — so many berries! Tap each one and we'll count!",{learning:true});
+  let idleTimer; function resetIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(autocount,9000); }
+  function autocount(){ const next=berries.find(b=>!b.dataset.lit); if(next){ tapBerry(next); resetIdle(); } }
+  resetIdle();
+  function tapBerry(g){ if(g.dataset.lit){ popObj(g,false); Voice.speak("We already counted that one! Find another.",{learning:true}); return; }
+    g.dataset.lit="1"; count++; popObj(g,true); countTone(count); const ring=document.createElementNS("http://www.w3.org/2000/svg","circle"); ring.setAttribute("r","13"); ring.setAttribute("fill","none"); ring.setAttribute("stroke","var(--gold)"); ring.setAttribute("stroke-width","2.5"); g.appendChild(ring);
+    Voice.speak(String(count),{learning:true});
+    if(count>=n){ clearTimeout(idleTimer); setTimeout(()=>Voice.speak(`${n}! There are ${n} berries, {name}!`,{learning:true}),500); setTimeout(finishActivity,1800); } } // reward fires on a timer, never gated on speech (no-fail)
+  berries.forEach(g=>g.addEventListener("pointerdown",e=>{ e.stopPropagation(); lastInteract=performance.now(); resetIdle(); tapBerry(g); }));
+}
+
+/* ---- MY NAME ---- */
+const letterSound={A:"a",B:"b",C:"c",D:"d",E:"eh",F:"fff",G:"g",H:"h",I:"i",J:"j",K:"k",L:"lll",M:"mmm",N:"nnn",O:"o",P:"p",Q:"kw",R:"rr",S:"sss",T:"t",U:"uh",V:"vvv",W:"w",X:"ks",Y:"y",Z:"zzz"};
+const pebbleCols=["#A98BD6","#5BAEDC","#7FC889","#F4B94B","#EF8FB8"];
+/* shared pebble factory (inner <g class="peb"> keeps the pop CSS-transform from clobbering the outer position transform) — reused by My Name, Letter Garden, Count-and-Find */
+function letterPebble(ch,x,y,r,col,data){ const g=document.createElementNS(SVGNS,"g"); g.setAttribute("transform",`translate(${x},${y})`); g.style.cursor="pointer"; if(data)Object.assign(g.dataset,data); const fs=Math.round(r*1.18);
+  g.innerHTML=`<g class="peb"><ellipse cx="1" cy="${(r+3).toFixed(0)}" rx="${r.toFixed(0)}" ry="${(r*0.26).toFixed(1)}" fill="#000" opacity=".07"/><rect x="${(-r).toFixed(0)}" y="${(-r).toFixed(0)}" width="${(r*2).toFixed(0)}" height="${(r*2).toFixed(0)}" rx="${(r*0.8).toFixed(0)}" fill="${col}"/><ellipse cx="0" cy="${(-r*0.45).toFixed(0)}" rx="${(r*0.66).toFixed(0)}" ry="${(r*0.3).toFixed(0)}" fill="#fff" opacity=".25"/><text x="0" y="${(fs*0.34).toFixed(0)}" text-anchor="middle" font-size="${fs}" font-weight="800" fill="#3A3550" font-family="inherit">${ch}</text></g>`;
+  return g; }
+function pebblePop(g,t){ const p=g.querySelector(".peb")||g; p.style.transition="transform .2s"; p.style.transformBox="fill-box"; p.style.transformOrigin="center"; p.style.transform=t; }
+/* generic nearest-pebble hit-field over a row of choice pebbles in #activity — every tap snaps to the closest one (no dead gaps) */
+function nearestPebbleField(pebbles,onChoose){ const xs=pebbles.map(g=>{const m=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/);return [+m[1],+m[2]];});
+  const minX=Math.min(...xs.map(p=>p[0])),maxX=Math.max(...xs.map(p=>p[0])),minY=Math.min(...xs.map(p=>p[1])),maxY=Math.max(...xs.map(p=>p[1]));
+  const x0=Math.max(0,minX-46),y0=Math.max(0,minY-46),x1=Math.min(480,maxX+46),y1=Math.min(340,maxY+46);
+  const hit=document.createElementNS(SVGNS,"rect"); hit.setAttribute("x",x0.toFixed(1)); hit.setAttribute("y",y0.toFixed(1)); hit.setAttribute("width",(x1-x0).toFixed(1)); hit.setAttribute("height",(y1-y0).toFixed(1)); hit.setAttribute("fill","transparent"); hit.style.cursor="pointer"; A.appendChild(hit);
+  hit.addEventListener("pointerdown",e=>{ e.stopPropagation(); lastInteract=performance.now(); const p=svgPoint(e); let best=null,bd=1e9; pebbles.forEach((g,i)=>{ const dx=p.x-xs[i][0],dy=p.y-xs[i][1],d=dx*dx+dy*dy; if(d<bd){bd=d;best=g;} }); if(best)onChoose(best); }); return hit; }
+function startMyName(){ clearActivity(); const ns="http://www.w3.org/2000/svg";
+  const raw=(child.name||"You").replace(/[^A-Za-z]/g,"").slice(0,8)||"You"; const letters=raw.toUpperCase().split(""); const band=ageBand(); const n=letters.length;
+  // Letters ALWAYS read LEFT-TO-RIGHT in name order — a pre-reader taps along their own name (no scramble). Spacing scales down for long names so pebbles never crowd/overlap.
+  const padX=54, fieldW=480-padX*2, step=fieldW/n, r=Math.max(15,Math.min(25,step*0.40)), baseY=214;
+  const positions=letters.map((_,i)=>[padX+step*(i+0.5), baseY+(n>5?0:Math.sin(i*0.9)*5)]);
+  let next=0; const pebbles=[];
+  letters.forEach((ch,i)=>{ const [x,y]=positions[i]; const g=letterPebble(ch,x,y,r,pebbleCols[i%pebbleCols.length],{li:i,ch}); A.appendChild(g); pebbles.push(g); });
+  // ribbon (the name filling in across the top)
+  BANNER.innerHTML=`<rect x="${240-letters.length*15}" y="8" width="${letters.length*30}" height="30" rx="14" fill="#F7F5FF" opacity=".95"/>`+letters.map((ch,i)=>`<rect x="${240-letters.length*15+6+i*30}" y="13" width="20" height="20" rx="6" fill="none" stroke="#D8D2F0" stroke-width="2" stroke-dasharray="3 3"/><text class="rib" data-i="${i}" x="${240-letters.length*15+16+i*30}" y="29" text-anchor="middle" font-size="15" font-weight="800" fill="var(--violet)" opacity="0">${ch}</text>`).join("");
+  activeActivity={type:"myName"};
+  // firefly guide
+  const fly=document.createElementNS(ns,"g"); fly.innerHTML=`<circle r="9" fill="#FBE08A" opacity=".5"/><circle r="4.5" fill="#F4C04A"/>`; A.appendChild(fly);
+  const pebAt=li=>pebbles.find(p=>+p.dataset.li===li);
+  function moveFirefly(){ const g=pebAt(next); if(!g){fly.style.opacity="0";return;} const tr=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/); fly.setAttribute("transform",`translate(${tr[1]},${(+tr[2]-(r+14)).toFixed(1)})`); fly.style.opacity=(band==="hard"&&next>0)?"0":"1"; }
+  function guide(){ pebbles.forEach(p=>{ const h=p.querySelector(".halo"); if(h)h.remove(); }); const g=pebAt(next); if(g && !(band==="hard"&&next>0))haloOn(g); moveFirefly(); }
+  function pop(g,t){ const p=g.querySelector(".peb")||g; p.style.transition="transform .2s"; p.style.transformBox="fill-box"; p.style.transformOrigin="center"; p.style.transform=t; }
+  // BIG forgiving hit-field over the whole row: every tap snaps to the NEAREST pebble — no dead gaps, no neighbour mis-taps
+  const x0=Math.max(0,positions[0][0]-step/2-8), x1=Math.min(480,positions[n-1][0]+step/2+8);
+  const hit=document.createElementNS(ns,"rect"); hit.setAttribute("x",x0.toFixed(1)); hit.setAttribute("y",(baseY-r-32).toFixed(1)); hit.setAttribute("width",(x1-x0).toFixed(1)); hit.setAttribute("height",((r+32)*2).toFixed(1)); hit.setAttribute("fill","transparent"); hit.style.cursor="pointer"; A.appendChild(hit);
+  guide();
+  Voice.speak("Guess what, {name}? Your name has special letters! Tap the very first one!",{learning:true});
+  let idleTimer; function resetIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(guide,5000); }
+  resetIdle();
+  function onPebble(g){ lastInteract=performance.now(); resetIdle(); const li=+g.dataset.li, tr=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/), gx=+tr[1], gy=+tr[2];
+    if(li===next){ pop(g,"translateY(-9px) scale(1.12)"); setTimeout(()=>pop(g,"translateY(-4px)"),220);
+      tone(380+next*40,.18,"sine",.12); sparkleAt(gx,gy); const rib=BANNER.querySelector(`.rib[data-i="${next}"]`); if(rib)rib.setAttribute("opacity","1");
+      Voice.speak(letterSound[g.dataset.ch]||g.dataset.ch,{learning:true,solo:true}); next++; guide();
+      if(next>=letters.length){ clearTimeout(idleTimer); hit.style.pointerEvents="none"; companionEmote("celebrate"); setTimeout(()=>{ Voice.speak(`${letters.join("-")}... ${raw}! That's YOU, {name}!`,{learning:true,solo:true}); plantSignpost(raw); },450); setTimeout(finishActivity,2000); } } // reward on a timer, not gated on speech
+    else { /* NO-FAIL: a different letter just cheerfully says its own sound + keeps guiding to the glowing one — no error sound, no scolding */ pop(g,"scale(1.08)"); setTimeout(()=>pop(g,""),180); tone(300,.12,"sine",.06); Voice.speak((letterSound[g.dataset.ch]||g.dataset.ch)+"!",{learning:true,solo:true}); guide(); } }
+  hit.addEventListener("pointerdown",e=>{ e.stopPropagation(); const p=svgPoint(e); let best=null,bd=1e9; pebbles.forEach(g=>{ const tr=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/); const dx=p.x-(+tr[1]), dy=p.y-(+tr[2]); const d=dx*dx+dy*dy; if(d<bd){bd=d;best=g;} }); if(best)onPebble(best); });
+}
+
+/* ---- LETTER GARDEN (school: recognise a letter by name + sound) ---- */
+function startLetterGarden(){ clearActivity(); const L=ageLevel();
+  const POOLS=[ ["A","B","C","M","S","O"], ["A","B","C","M","S","O","T","P","F"], "ABCDEFGHIJ".split(""), "ABCDEFGHIJKLMNOPQRST".split(""), "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split(""), "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("") ];
+  const NCH=[2,3,4,4,5,5]; const pool=POOLS[L], nChoices=Math.min(NCH[L],pool.length), lower=L>=5; /* L5 (age 8): match the BIG letter to its little (lowercase) letter */
+  const target=pick(pool); const choices=[target]; while(choices.length<nChoices){ const c=pick(pool); if(choices.indexOf(c)<0)choices.push(c); } shuffle(choices);
+  chalkTarget(target); activeActivity={type:"letterGarden"};
+  const nC=choices.length, fieldW=Math.min(310,nC*68), padX=322-fieldW/2, step=fieldW/nC, r=Math.max(21,Math.min(27,step*0.40)), baseY=252;
+  const pebbles=choices.map((ch,i)=>{ const g=letterPebble(lower?ch.toLowerCase():ch,padX+step*(i+0.5),baseY,r,pebbleCols[i%pebbleCols.length],{ch}); A.appendChild(g); return g; });
+  let done=false, idleTimer;
+  const sayName=ch=>lower?`big ${ch} and little ${ch.toLowerCase()}`:ch;
+  function scaffold(){ const t=pebbles.find(p=>p.dataset.ch===target); if(t)haloOn(t); }
+  function resetIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(()=>{ scaffold(); Voice.speak(`Find ${target}. It says ${letterSound[target]}.`,{learning:true}); },7000); }
+  Voice.speak(lower?`Match the big letter, {name}! Find the little ${target.toLowerCase()} — ${target} says ${letterSound[target]}!`:`Let's find a letter, {name}! Can you find the ${target}? It says ${letterSound[target]}!`,{learning:true});
+  resetIdle();
+  function choose(g){ lastInteract=performance.now(); resetIdle(); const tr=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/),gx=+tr[1],gy=+tr[2];
+    if(g.dataset.ch===target&&!done){ done=true; clearTimeout(idleTimer); pebblePop(g,"translateY(-9px) scale(1.15)"); setTimeout(()=>pebblePop(g,"translateY(-3px)"),220); tone(520,.18,"sine",.12); chimeUp(); sparkleAt(gx,gy);
+      Voice.speak(`Yes! ${target}! ${target} says ${letterSound[target]}!`,{learning:true,solo:true}); companionEmote("celebrate"); setTimeout(finishActivity,2000); }
+    else if(!done){ /* NO-FAIL: still teach the tapped letter, then re-guide */ pebblePop(g,"scale(1.08)"); setTimeout(()=>pebblePop(g,""),180); tone(300,.12,"sine",.06); Voice.speak(`That's ${g.dataset.ch}, it says ${letterSound[g.dataset.ch]}. Let's find ${target}!`,{learning:true,solo:true}); scaffold(); } }
+  nearestPebbleField(pebbles,choose);
+}
+
+/* ---- COUNT-AND-FIND (school: recognise a numeral, then collect that many) ---- */
+const COUNT_OBJS=["Star","Ball","Flower","Fish","Bird"];
+function startCountFind(){ clearActivity(); const L=ageLevel(); const addition=L>=4;  /* ages 7-8 do simple ADDITION */
+  let target,a=0,b=0;
+  if(addition){ const cap=L>=5?15:12; a=2+Math.floor(Math.random()*6); b=1+Math.floor(Math.random()*Math.min(6,Math.max(1,cap-a))); target=a+b; }
+  else { const maxByL=[3,5,10,12]; target=1+Math.floor(Math.random()*maxByL[Math.min(L,3)]); }
+  activeActivity={type:"countFind"}; chalkTarget(addition?`${a} + ${b}`:String(target));
+  // STEP 1 — pick the answer numeral
+  const nOpt=L>=2?4:3, span=Math.max(target+3,6); const opts=[target]; while(opts.length<nOpt){ const c=1+Math.floor(Math.random()*span); if(opts.indexOf(c)<0)opts.push(c); } shuffle(opts);
+  const nO=opts.length, fieldW=Math.min(290,nO*70), padX=322-fieldW/2, step=fieldW/nO, r=Math.max(22,Math.min(27,step*0.40)), baseY=252; let step2=false, idle1;
+  const pebbles=opts.map((nu,i)=>{ const g=letterPebble(String(nu),padX+step*(i+0.5),baseY,r,pebbleCols[i%pebbleCols.length],{nu}); A.appendChild(g); return g; });
+  Voice.speak(addition?`Let's add, {name}! What is ${a} plus ${b}?`:`Let's count, {name}! Can you find the number ${target}?`,{learning:true});
+  function scaffold1(){ const t=pebbles.find(p=>+p.dataset.nu===target); if(t)haloOn(t); }
+  function resetIdle1(){ clearTimeout(idle1); idle1=setTimeout(()=>{ scaffold1(); Voice.speak(`Find the number ${target}!`,{learning:true}); },7000); }
+  resetIdle1();
+  function choose(g){ lastInteract=performance.now(); if(step2)return; const tr=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/),gx=+tr[1],gy=+tr[2];
+    if(+g.dataset.nu===target){ step2=true; clearTimeout(idle1); pebblePop(g,"translateY(-9px) scale(1.15)"); tone(520,.18,"sine",.12); sparkleAt(gx,gy); Voice.speak(`Yes! ${target}!`,{learning:true,solo:true}); setTimeout(beginCount,750); }
+    else { resetIdle1(); pebblePop(g,"scale(1.08)"); setTimeout(()=>pebblePop(g,""),180); tone(300,.12,"sine",.06); Voice.speak(`That's ${g.dataset.nu}. We want ${target}!`,{learning:true,solo:true}); scaffold1(); } }
+  nearestPebbleField(pebbles,choose);
+  // STEP 2 — collect 'target' things and count them
+  function spotFor(i,total){ const per=5, row=Math.floor(i/per), idx=i%per, cols=Math.min(per,total-row*per), rw=(cols-1)*78, y0=total<=5?284:252;
+    return [240-rw/2+idx*78, y0+row*30]; }
+  function beginCount(){ clearActivity(); chalkTarget(String(target)); activeActivity={type:"countFind"};
+    const word=pick(COUNT_OBJS), things=[]; let count=0;
+    BANNER.innerHTML=`<rect x="${240-target*15}" y="8" width="${target*30}" height="30" rx="12" fill="#F7F5FF" opacity=".95"/>`+Array.from({length:target},(_,i)=>`<rect x="${240-target*15+6+i*30}" y="13" width="20" height="20" rx="5" fill="none" stroke="#D8D2F0" stroke-width="2" stroke-dasharray="3 3"/><circle class="cf" data-i="${i}" cx="${240-target*15+16+i*30}" cy="23" r="7" fill="var(--gold)" opacity="0"/>`).join("");
+    for(let i=0;i<target;i++){ const [x,y]=spotFor(i,target); const g=document.createElementNS(SVGNS,"g"); g.setAttribute("transform",`translate(${x},${y})`); g.style.cursor="pointer"; g.dataset.thing="1";
+      g.innerHTML=`<g class="peb">${drawObject(word)}</g>`; A.appendChild(g); things.push(g); }
+    Voice.speak(`Now let's find ${target}! Tap each one and count!`,{learning:true});
+    let idle2; function resetIdle2(){ clearTimeout(idle2); idle2=setTimeout(auto,8000); }
+    function auto(){ const nx=things.find(t=>!t.dataset.lit); if(nx){ tapThing(nx); resetIdle2(); } }
+    resetIdle2();
+    function tapThing(g){ if(g.dataset.lit)return; g.dataset.lit="1"; count++; pebblePop(g,"scale(1.2)"); setTimeout(()=>pebblePop(g,"scale(1)"),200); countTone(count);
+      const ring=document.createElementNS(SVGNS,"circle"); ring.setAttribute("r","18"); ring.setAttribute("fill","none"); ring.setAttribute("stroke","var(--gold)"); ring.setAttribute("stroke-width","2.5"); g.appendChild(ring);
+      const dot=BANNER.querySelector(`.cf[data-i="${count-1}"]`); if(dot)dot.setAttribute("opacity","1"); Voice.speak(String(count),{learning:true,solo:true});
+      if(count>=target){ clearTimeout(idle2); setTimeout(()=>Voice.speak(addition?`${a} plus ${b} is ${target}, {name}!`:`${target}! We found ${target}, {name}!`,{learning:true}),500); setTimeout(finishActivity,1800); } } // never gated on speech
+    // forgiving NEAREST-UNCOUNTED hit-field over the objects (every tap makes progress — no dead gaps / mis-taps)
+    const xs=things.map(g=>{const m=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/);return [+m[1],+m[2]];});
+    const minX=Math.min(...xs.map(p=>p[0])),maxX=Math.max(...xs.map(p=>p[0])),minY=Math.min(...xs.map(p=>p[1])),maxY=Math.max(...xs.map(p=>p[1]));
+    const x0=Math.max(0,minX-44),y0=Math.max(0,minY-44),x1=Math.min(480,maxX+44),y1=Math.min(340,maxY+44);
+    const hit=document.createElementNS(SVGNS,"rect"); hit.setAttribute("x",x0.toFixed(1)); hit.setAttribute("y",y0.toFixed(1)); hit.setAttribute("width",(x1-x0).toFixed(1)); hit.setAttribute("height",(y1-y0).toFixed(1)); hit.setAttribute("fill","transparent"); hit.style.cursor="pointer"; A.appendChild(hit);
+    hit.addEventListener("pointerdown",e=>{ e.stopPropagation(); lastInteract=performance.now(); resetIdle2(); const p=svgPoint(e); let best=null,bd=1e9; things.forEach((g,i)=>{ if(g.dataset.lit)return; const dx=p.x-xs[i][0],dy=p.y-xs[i][1],d=dx*dx+dy*dy; if(d<bd){bd=d;best=g;} }); if(best)tapThing(best); });
+  }
+}
+/* ============================================================
+   MORE LESSONS: shapes · colours · animal sounds  (all no-fail)
+   ============================================================ */
+function drawShape(name,fill){ const F=`fill="${fill||"#fff"}"`;
+  switch(name){
+    case "Square": return `<rect x="-16" y="-16" width="32" height="32" rx="3" ${F}/>`;
+    case "Triangle": return `<path d="M0,-18 L18,16 L-18,16 Z" ${F}/>`;
+    case "Star": return `<path d="M0,-19 l5.6,11.3 12.5,1.8 -9,8.8 2.1,12.4 -11.2,-5.9 -11.2,5.9 2.1,-12.4 -9,-8.8 12.5,-1.8 Z" ${F}/>`;
+    case "Heart": return `<path d="M0,15 C-17,2 -13,-15 0,-6 C13,-15 17,2 0,15 Z" ${F}/>`;
+    case "Diamond": return `<path d="M0,-19 L17,0 L0,19 L-17,0 Z" ${F}/>`;
+    case "Oval": return `<ellipse rx="20" ry="13" ${F}/>`;
+    case "Rectangle": return `<rect x="-21" y="-12" width="42" height="24" rx="3" ${F}/>`;
+    default: return `<circle r="17" ${F}/>`; /* Circle */
+  } }
+const SHAPES=["Circle","Square","Triangle","Star","Heart","Diamond","Oval","Rectangle"];
+/* pebble whose face is an arbitrary inner SVG icon (shape / colour / animal) — same juicy base + .peb pop hook as letterPebble */
+function iconPebble(inner,x,y,r,col,data){ const g=document.createElementNS(SVGNS,"g"); g.setAttribute("transform",`translate(${x},${y})`); g.style.cursor="pointer"; if(data)Object.assign(g.dataset,data);
+  g.innerHTML=`<g class="peb"><ellipse cx="1" cy="${(r+3).toFixed(0)}" rx="${r.toFixed(0)}" ry="${(r*0.26).toFixed(1)}" fill="#000" opacity=".07"/><circle r="${r.toFixed(0)}" fill="${col}"/><ellipse cx="0" cy="${(-r*0.42).toFixed(0)}" rx="${(r*0.58).toFixed(0)}" ry="${(r*0.26).toFixed(0)}" fill="#fff" opacity=".2"/>${inner}</g>`; return g; }
+
+function startShapeHunt(){ clearActivity(); const L=ageLevel();
+  const pools=[ ["Circle","Square","Triangle","Star"], ["Circle","Square","Triangle","Star"], ["Circle","Square","Triangle","Star","Heart","Diamond"], ["Circle","Square","Triangle","Star","Heart","Diamond"], SHAPES, SHAPES ];
+  const NCH=[2,3,3,4,4,5]; const pool=pools[L], nC=Math.min(NCH[L],pool.length);
+  const target=pick(pool); const choices=[target]; while(choices.length<nC){ const c=pick(pool); if(choices.indexOf(c)<0)choices.push(c); } shuffle(choices);
+  if(place==="school")setChalk(`<g transform="translate(84,158) scale(1.5)">${drawShape(target,"#F4F1E8")}</g>`);
+  activeActivity={type:"shapeHunt"};
+  const n=choices.length, fieldW=Math.min(300,n*72), padX=322-fieldW/2, step=fieldW/n, r=Math.max(24,Math.min(29,step*0.42)), baseY=250;
+  const pebbles=choices.map((sh,i)=>{ const g=iconPebble(drawShape(sh,"#fff"),padX+step*(i+0.5),baseY,r,"#6B5BD2",{shape:sh}); A.appendChild(g); return g; });
+  let done=false, idleTimer;
+  function scaffold(){ const t=pebbles.find(p=>p.dataset.shape===target); if(t)haloOn(t); }
+  function resetIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(()=>{ scaffold(); Voice.speak(`Find the ${target.toLowerCase()}!`,{learning:true}); },7000); }
+  Voice.speak(`Let's find a shape, {name}! Can you find the ${target.toLowerCase()}?`,{learning:true}); resetIdle();
+  function choose(g){ lastInteract=performance.now(); resetIdle(); const tr=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/),gx=+tr[1],gy=+tr[2];
+    if(g.dataset.shape===target&&!done){ done=true; clearTimeout(idleTimer); pebblePop(g,"translateY(-9px) scale(1.15)"); setTimeout(()=>pebblePop(g,"translateY(-3px)"),220); tone(520,.18,"sine",.12); chimeUp(); sparkleAt(gx,gy); Voice.speak(`Yes! A ${target.toLowerCase()}!`,{learning:true,solo:true}); companionEmote("celebrate"); setTimeout(finishActivity,1900); }
+    else if(!done){ pebblePop(g,"scale(1.08)"); setTimeout(()=>pebblePop(g,""),180); tone(300,.12,"sine",.06); Voice.speak(`That's a ${g.dataset.shape.toLowerCase()}. Let's find the ${target.toLowerCase()}!`,{learning:true,solo:true}); scaffold(); } }
+  nearestPebbleField(pebbles,choose);
+}
+
+const COLORM=[["Blue","#5BAEDC"],["Red","#F47C7C"],["Green","#7FC889"],["Yellow","#F4B94B"],["Purple","#A98BD6"],["Pink","#EF8FB8"],["Orange","#F0925A"],["Teal","#5BD0C0"]];
+function startColorMatch(){ clearActivity(); const L=ageLevel();
+  const NCH=[2,3,3,4,5,6]; const palette=COLORM.slice(0, L<=1?4:(L<=3?6:8)); const nC=Math.min(NCH[L],palette.length);
+  const target=pick(palette); const choices=[target]; while(choices.length<nC){ const c=pick(palette); if(choices.indexOf(c)<0)choices.push(c); } shuffle(choices);
+  if(place==="school")setChalk(`<circle cx="84" cy="160" r="26" fill="${target[1]}"/>`);
+  BANNER.innerHTML=`<rect x="194" y="8" width="92" height="30" rx="14" fill="#F7F5FF" opacity=".95"/><circle cx="212" cy="23" r="10" fill="${target[1]}"/><text x="248" y="28" text-anchor="middle" font-size="13" font-weight="800" fill="var(--violet)" font-family="inherit">${target[0]}</text>`;
+  activeActivity={type:"colorMatch"};
+  const n=choices.length, fieldW=Math.min(300,n*70), padX=322-fieldW/2, step=fieldW/n, r=Math.max(23,Math.min(28,step*0.42)), baseY=250;
+  const pebbles=choices.map((c,i)=>{ const g=iconPebble("",padX+step*(i+0.5),baseY,r,c[1],{color:c[0]}); A.appendChild(g); return g; });
+  let done=false, idleTimer;
+  function scaffold(){ const t=pebbles.find(p=>p.dataset.color===target[0]); if(t)haloOn(t); }
+  function resetIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(()=>{ scaffold(); Voice.speak(`Find the ${target[0].toLowerCase()} one!`,{learning:true}); },7000); }
+  Voice.speak(`Let's find a colour, {name}! Can you tap the ${target[0].toLowerCase()} one?`,{learning:true}); resetIdle();
+  function choose(g){ lastInteract=performance.now(); resetIdle(); const tr=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/),gx=+tr[1],gy=+tr[2];
+    if(g.dataset.color===target[0]&&!done){ done=true; clearTimeout(idleTimer); pebblePop(g,"translateY(-9px) scale(1.15)"); setTimeout(()=>pebblePop(g,"translateY(-3px)"),220); tone(520,.18,"sine",.12); chimeUp(); sparkleAt(gx,gy); Voice.speak(`Yes! ${target[0]}!`,{learning:true,solo:true}); companionEmote("celebrate"); setTimeout(finishActivity,1800); }
+    else if(!done){ pebblePop(g,"scale(1.08)"); setTimeout(()=>pebblePop(g,""),180); tone(300,.12,"sine",.06); Voice.speak(`That's ${g.dataset.color.toLowerCase()}. Find ${target[0].toLowerCase()}!`,{learning:true,solo:true}); scaffold(); } }
+  nearestPebbleField(pebbles,choose);
+}
+
+function drawAnimal(name){ switch(name){
+  case "Cat": return `<path d="M-15,-8 L-20,-22 L-6,-13 Z" fill="#C9A06A"/><path d="M15,-8 L20,-22 L6,-13 Z" fill="#C9A06A"/><circle r="17" fill="#D9B98A"/><circle cx="-6" cy="-2" r="2.4" fill="#2A2622"/><circle cx="6" cy="-2" r="2.4" fill="#2A2622"/><path d="M0,3 v3" stroke="#2A2622" stroke-width="1.4"/><g stroke="#9A7A4A" stroke-width="1"><line x1="-7" y1="4" x2="-18" y2="2"/><line x1="-7" y1="6" x2="-18" y2="8"/><line x1="7" y1="4" x2="18" y2="2"/><line x1="7" y1="6" x2="18" y2="8"/></g>`;
+  case "Dog": return `<ellipse cx="-15" cy="-3" rx="7" ry="12" fill="#9A6B3C"/><ellipse cx="15" cy="-3" rx="7" ry="12" fill="#9A6B3C"/><circle r="17" fill="#C99A5A"/><circle cx="-6" cy="-3" r="2.4" fill="#2A2622"/><circle cx="6" cy="-3" r="2.4" fill="#2A2622"/><ellipse cx="0" cy="5" rx="6" ry="4.5" fill="#E8C29A"/><circle cx="0" cy="4" r="2.4" fill="#3A2A20"/>`;
+  case "Cow": return `<ellipse cx="-15" cy="-6" rx="6" ry="8" fill="#3A3550"/><ellipse cx="15" cy="-6" rx="6" ry="8" fill="#3A3550"/><circle r="17" fill="#F0EDE6"/><circle cx="7" cy="-9" r="5" fill="#3A3550" opacity=".5"/><circle cx="-6" cy="-2" r="2.4" fill="#2A2622"/><circle cx="6" cy="-2" r="2.4" fill="#2A2622"/><ellipse cx="0" cy="7" rx="9" ry="6" fill="#F4B6C2"/><circle cx="-3" cy="7" r="1.4" fill="#B5635A"/><circle cx="3" cy="7" r="1.4" fill="#B5635A"/>`;
+  case "Duck": return `<circle r="17" fill="#F4C84A"/><circle cx="-5" cy="-3" r="2.4" fill="#2A2622"/><circle cx="6" cy="-3" r="2.4" fill="#2A2622"/><path d="M2,3 q11,2 15,0 q-3,6 -15,3 Z" fill="#F0925A"/>`;
+  case "Sheep": return `<g fill="#F2EFEA">${[0,60,120,180,240,300].map(a=>`<circle cx="${(Math.cos(a*Math.PI/180)*15).toFixed(0)}" cy="${(Math.sin(a*Math.PI/180)*15).toFixed(0)}" r="9"/>`).join("")}</g><ellipse cx="0" cy="2" rx="9" ry="10" fill="#3A3550"/><circle cx="-3" cy="0" r="1.8" fill="#fff"/><circle cx="3" cy="0" r="1.8" fill="#fff"/>`;
+  case "Frog": return `<circle cx="-9" cy="-12" r="7" fill="#7FC889"/><circle cx="9" cy="-12" r="7" fill="#7FC889"/><circle cx="-9" cy="-12" r="3" fill="#2A2622"/><circle cx="9" cy="-12" r="3" fill="#2A2622"/><circle r="16" fill="#7FC889"/><path d="M-8,4 q8,6 16,0" stroke="#3A7A4A" stroke-width="2" fill="none"/>`;
+  case "Bird": return `<circle r="16" fill="#5BAEDC"/><circle cx="-5" cy="-3" r="2.4" fill="#2A2622"/><circle cx="6" cy="-3" r="2.4" fill="#2A2622"/><path d="M4,2 l12,3 -12,4 Z" fill="#F4B94B"/>`;
+  default: return `<circle r="16" fill="#C9A06A"/>`;
+} }
+const ANIMALS=[ ["Cat","meow"],["Dog","woof"],["Cow","moo"],["Duck","quack"],["Sheep","baa"],["Frog","ribbit"],["Bird","tweet"] ];
+function animalSound(name){ if(!AC||!soundOn)return; switch(name){
+  case "Cat": tone(700,.18,"sine",.12); tone(900,.16,"sine",.1,.12); break;
+  case "Dog": tone(180,.16,"sawtooth",.12); tone(150,.18,"sawtooth",.1,.15); break;
+  case "Cow": tone(120,.5,"sine",.13); break;
+  case "Duck": tone(420,.09,"square",.1); tone(420,.09,"square",.1,.13); break;
+  case "Sheep": tone(330,.4,"sawtooth",.1); break;
+  case "Frog": tone(150,.12,"square",.12); tone(110,.14,"square",.1,.15); break;
+  case "Bird": tone(1200,.1,"sine",.1); tone(1500,.1,"sine",.08,.1); break;
+} }
+function startAnimalSounds(){ clearActivity(); const L=ageLevel();
+  const NCH=[2,3,3,4,4,5]; const pool=ANIMALS.slice(0, L<=1?3:(L<=3?5:7)); const nC=Math.min(NCH[L],pool.length);
+  const target=pick(pool); const choices=[target]; while(choices.length<nC){ const c=pick(pool); if(!choices.some(x=>x[0]===c[0]))choices.push(c); } shuffle(choices);
+  activeActivity={type:"animalSounds"};
+  const n=choices.length, fieldW=Math.min(312,n*74), padX=322-fieldW/2, step=fieldW/n, r=Math.max(25,Math.min(30,step*0.42)), baseY=250;
+  const pebbles=choices.map((an,i)=>{ const g=iconPebble(drawAnimal(an[0]),padX+step*(i+0.5),baseY,r,"#EAF6FB",{animal:an[0]}); A.appendChild(g); return g; });
+  let done=false, idleTimer;
+  function playTarget(){ setTimeout(()=>animalSound(target[0]),300); }
+  function scaffold(){ const t=pebbles.find(p=>p.dataset.animal===target[0]); if(t)haloOn(t); }
+  function resetIdle(){ clearTimeout(idleTimer); idleTimer=setTimeout(()=>{ scaffold(); Voice.speak(`Who says ${target[1]}?`,{learning:true,cb:playTarget}); },7000); }
+  Voice.speak(`Listen, {name}! Who says ${target[1]}? Tap that animal!`,{learning:true,cb:playTarget}); resetIdle();
+  function choose(g){ lastInteract=performance.now(); resetIdle(); animalSound(g.dataset.animal); const tr=g.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/),gx=+tr[1],gy=+tr[2];
+    if(g.dataset.animal===target[0]&&!done){ done=true; clearTimeout(idleTimer); pebblePop(g,"translateY(-9px) scale(1.15)"); setTimeout(()=>pebblePop(g,"translateY(-3px)"),220); chimeUp(); sparkleAt(gx,gy); Voice.speak(`Yes! The ${target[0].toLowerCase()} says ${target[1]}!`,{learning:true,solo:true}); companionEmote("celebrate"); setTimeout(finishActivity,2000); }
+    else if(!done){ pebblePop(g,"scale(1.08)"); setTimeout(()=>pebblePop(g,""),180); Voice.speak(`That's the ${g.dataset.animal.toLowerCase()}. Who says ${target[1]}?`,{learning:true,solo:true}); scaffold(); } }
+  nearestPebbleField(pebbles,choose);
+}
+
+/* ---- MEMORY MATCH (flip pairs; no-fail; very replayable) ---- */
+function startMemoryMatch(){ clearActivity(); const L=ageLevel();
+  const nPairs=[2,2,3,3,4,4][L];
+  const set=shuffle([ ...SHAPES.map(s=>({pid:"sh"+s,svg:drawShape(s,"#6B5BD2")})), ...ANIMALS.map(a=>({pid:"an"+a[0],svg:drawAnimal(a[0])})), ...COLORM.map(c=>({pid:"co"+c[0],svg:`<circle r="17" fill="${c[1]}"/>`})) ]).slice(0,nPairs);
+  let deck=[]; set.forEach(ic=>{ deck.push(ic); deck.push(ic); }); shuffle(deck);
+  activeActivity={type:"memoryMatch"};
+  const total=deck.length, cols=total<=4?2:(total<=6?3:4), rows=Math.ceil(total/cols);
+  const cw=62, chh=72, gx=14, gy=10, gw=cols*cw+(cols-1)*gx, x0=240-gw/2+cw/2, y0=rows<=2?(252-((rows-1)*(chh+gy))/2):222;
+  let flipped=[], matched=0, lock=false; const cards=[];
+  deck.forEach((d,i)=>{ const col=i%cols, row=Math.floor(i/cols), cx=x0+col*(cw+gx), cy=y0+row*(chh+gy);
+    const g=document.createElementNS(SVGNS,"g"); g.setAttribute("transform",`translate(${cx},${cy})`); g.style.cursor="pointer"; g.dataset.pid=d.pid;
+    g.innerHTML=`<g class="peb"><g class="cback"><rect x="${-cw/2}" y="${-chh/2}" width="${cw}" height="${chh}" rx="11" fill="#6B5BD2"/><text x="0" y="10" text-anchor="middle" font-size="30" font-weight="800" fill="#fff">?</text></g><g class="cface" style="opacity:0"><rect x="${-cw/2}" y="${-chh/2}" width="${cw}" height="${chh}" rx="11" fill="#fff" stroke="#D8D2F0" stroke-width="2"/>${d.svg}</g></g>`;
+    A.appendChild(g); cards.push(g);
+    g.addEventListener("pointerdown",e=>{ e.stopPropagation(); lastInteract=performance.now(); flip(g); }); });
+  function setFace(g,show){ const bk=g.querySelector(".cback"), fc=g.querySelector(".cface"); if(bk)bk.style.opacity=show?"0":"1"; if(fc)fc.style.opacity=show?"1":"0"; }
+  function flip(g){ if(lock||g.dataset.up||g.dataset.done)return; resetIdle(); g.dataset.up="1"; setFace(g,true); tone(540,.1,"sine",.09); pebblePop(g,"scale(1.06)"); setTimeout(()=>pebblePop(g,""),160); flipped.push(g);
+    if(flipped.length===2){ lock=true; const [a,b]=flipped;
+      if(a.dataset.pid===b.dataset.pid){ setTimeout(()=>{ a.dataset.done=b.dataset.done="1"; chimeUp(); const tr=b.getAttribute("transform").match(/translate\(([-\d.]+),([-\d.]+)\)/); sparkleAt(+tr[1],+tr[2]); flipped=[]; lock=false; matched++; companionEmote("happy");
+          if(matched>=nPairs){ clearTimeout(idle); setTimeout(()=>Voice.speak("You found all the pairs, {name}!",{learning:true}),400); setTimeout(finishActivity,1700); } },420); }
+      else { setTimeout(()=>{ setFace(a,false); setFace(b,false); a.dataset.up=b.dataset.up=""; flipped=[]; lock=false; tone(300,.12,"sine",.06); },850); } } }
+  let idle; function resetIdle(){ clearTimeout(idle); idle=setTimeout(autoHelp,13000); }
+  function autoHelp(){ if(lock)return; const rem=cards.filter(c=>!c.dataset.done), byPid={}; rem.forEach(c=>{(byPid[c.dataset.pid]=byPid[c.dataset.pid]||[]).push(c);});
+    let pr=null; for(const k in byPid){ if(byPid[k].length>=2){ pr=byPid[k]; break; } } if(!pr)return;
+    flipped.forEach(g=>{ setFace(g,false); g.dataset.up=""; }); flipped=[]; flip(pr[0]); setTimeout(()=>flip(pr[1]),400); }
+  Voice.speak(`Memory game, {name}! Tap the cards and find the matching pairs!`,{learning:true});
+  resetIdle();
+}
+
+function plantSignpost(name){ progress.nameSignpostPlanted=true; saveProgress(); const sp=document.getElementById("signpost"); sp.innerHTML=`<g transform="translate(430,300)"><rect x="-3" y="0" width="6" height="34" rx="3" fill="#C98A5A"/><rect x="-34" y="-14" width="64" height="22" rx="6" fill="#E8C29A" stroke="#C98A5A" stroke-width="2"/><text x="-2" y="2" text-anchor="middle" font-size="13" font-weight="800" fill="#7D5638" font-family="inherit">${name}</text></g>`; }
+
+/* ---- companion emotes ---- */
+function companionEmote(kind){ if(REDUCE)return; const fx=document.getElementById("fx"); const g=document.createElementNS("http://www.w3.org/2000/svg","g"); g.setAttribute("transform",`translate(${av.x+58},${av.y-58})`);
+  if(kind==="happy")g.innerHTML=`<circle r="11" fill="#FBE08A"/><circle cx="-4" cy="-2" r="1.6" fill="#3A3550"/><circle cx="4" cy="-2" r="1.6" fill="#3A3550"/><path d="M-4,3 q4,4 8,0" stroke="#3A3550" stroke-width="1.6" fill="none"/>`;
+  else if(kind==="think")g.innerHTML=`<circle r="11" fill="#F4E0A0"/><text x="0" y="5" text-anchor="middle" font-size="15" font-weight="800" fill="#3A3550">?</text>`;
+  else g.innerHTML=`<circle r="11" fill="#C9B3F2"/>`+[0,90,180,270].map(a=>`<circle cx="${Math.cos(a*Math.PI/180)*16}" cy="${Math.sin(a*Math.PI/180)*16}" r="2.5" fill="#F4C04A"/>`).join("");
+  g.style.transition="opacity .2s, transform .2s"; g.style.opacity="0"; fx.appendChild(g); requestAnimationFrame(()=>{g.style.opacity="1"; g.setAttribute("transform",`translate(${av.x+58},${av.y-66})`);}); setTimeout(()=>{g.style.opacity="0";},700); setTimeout(()=>g.remove(),950); }
+
+/* ---- activity router + progress ---- */
+const ACTS_BY_PLACE={ meadow:["soundHunt","berryCount","myName","shapeHunt","colorMatch","animalSounds","memoryMatch"], school:["letterGarden","countFind","myName","shapeHunt","colorMatch","memoryMatch"] }; let actCursor=0;
+const START={ soundHunt:()=>startSoundHunt(), berryCount:()=>startBerryCount(), myName:()=>startMyName(), letterGarden:()=>startLetterGarden(), countFind:()=>startCountFind(), shapeHunt:()=>startShapeHunt(), colorMatch:()=>startColorMatch(), animalSounds:()=>startAnimalSounds(), memoryMatch:()=>startMemoryMatch() };
+function offerActivity(){ if(windingDown||place==="playground"||place==="house")return; const pool=ACTS_BY_PLACE[place]||ACTS_BY_PLACE.meadow; const type=pool[actCursor++%pool.length]; (START[type]||START.soundHunt)(); }
+function finishActivity(){ const type=activeActivity&&activeActivity.type; clearActivity();
+  if(type&&session.completed.indexOf(type)<0)session.completed.push(type);
+  Voice.line(LINES.success,{}); companionEmote("celebrate");
+  if(place==="school"){ addSchoolStar(); setTimeout(()=>{ if((progress.schoolStars||0)%3===0)Voice.speak("Three gold stars, {name}! You're learning so much!"); },900); return; }
+  brightenSky();
+  // bloom the next unbloomed flower (meadow)
+  const next=[0,1,2].find(i=>progress.bloomedFlowers.indexOf(i)<0);
+  if(next!=null){ setTimeout(()=>bloomFlower(next),300); if(next===2)setTimeout(()=>{ document.getElementById("skyTop").setAttribute("stop-color","#D8EEFA"); Voice.speak("You grew all three flowers, {name}! Your meadow is so happy!"); },1400); }
+  else { progress.berryJarFill++; saveProgress(); }
+}
+
+/* ============================================================
+   GAME STATE / ROUTER
+   ============================================================ */
+let state="boot", windingDown=false;
+const tapLayer=document.getElementById("tapLayer");
+tapLayer.addEventListener("pointerdown",e=>{ if(state!=="play"||windingDown)return; lastInteract=performance.now(); initAudio(); Voice.warm();
+  const p=svgPoint(e); if(p.y<200){ /* tapped sky -> gentle nudge to walk on grass */ walkTo(p.x,Math.max(210,p.y)); } else { walkTo(p.x,p.y); } sparkleAt(p.x,Math.max(206,p.y)); });
+document.getElementById("companionWrap").addEventListener("pointerdown",e=>{ e.stopPropagation(); initAudio(); lastInteract=performance.now(); companionHop(); if(state==="play"&&!activeActivity&&!windingDown)Voice.line(LINES.greeting,{}); });
+document.querySelectorAll("#places .travel").forEach(b=>b.addEventListener("pointerdown",e=>{ e.stopPropagation(); goPlace(b.dataset.place); }));
+
+function startPlay(){ state="play"; setup.classList.remove("show"); renderAvatar(); drawBlooms(); if(progress.nameSignpostPlanted)plantSignpost((child.name||"You").replace(/[^A-Za-z]/g,"").slice(0,8));
+  applyAccent();
+  // daily-delight hook
+  const today=new Date().toDateString();
+  if(progress.lastVisit && progress.lastVisit!==today){ setTimeout(()=>{ Voice.line(LINES.daily,{ambient:true}); spawnButterfly(); if(progress.bloomedFlowers.length<3)bloomFlower([0,1,2].find(i=>progress.bloomedFlowers.indexOf(i)<0)); },1400); }
+  progress.lastVisit=today; progress.totalSessions=(progress.totalSessions||0)+1; saveProgress();
+  spawnButterfly();
+  setTimeout(()=>offerActivity(),1800);
+}
+function doReveal(){ saveChild(); setup.classList.remove("show"); renderAvatar(); applyAccent(); drawBlooms(); state="reveal";
+  initAudio(); chimeUp(); burst(av.x,av.y-40);
+  Voice.line(LINES.reveal,{solo:true,cb:()=>startPlay()});
+  // safety: always advance even if voice fails
+  setTimeout(()=>{ if(state==="reveal")startPlay(); }, 6000);
+}
+function applyAccent(){ document.documentElement.style.setProperty("--accent", (child.favoriteColor&&child.favoriteColor.hex)||shirts[2]); }
+
+/* ============================================================
+   SETUP FLOW (5 cards)
+   ============================================================ */
+const setup=document.getElementById("setup"), setupCard=document.getElementById("setupCard");
+let qi=0, tmp=null;
+function startSetup(){ tmp=defaultChild(); setup.classList.add("show"); qi=0; renderQ(); }
+function miniScene(inner){ return `<svg class="scene-mini" viewBox="0 0 240 150" style="width:100%"><rect width="240" height="150" fill="none"/><g transform="translate(50,-78) scale(.62)">${inner}</g></svg>`; }
+function renderQ(){
+  child=child||tmp;
+  if(qi===0){ // NAME
+    setupCard.innerHTML=`<h2>✨ Let's begin ✨</h2><div class="sub">Type your child's name</div>
+      <div class="nameField"><input id="nm" type="text" maxlength="14" placeholder="Name" value="${tmp.name||""}"></div>
+      <div class="sub">A friend or sibling's name? <span style="color:#bdb8cf">(optional)</span></div>
+      <div class="nameField"><input id="nm2" type="text" maxlength="14" placeholder="(optional)" value="${tmp.friend2||""}"></div>
+      <button class="go" id="next" ${tmp.name?"":"disabled"}>Next →</button>
+      <div class="micro">Just a name — it never leaves this tablet.</div>`;
+    const nm=document.getElementById("nm"); nm.addEventListener("input",()=>{ tmp.name=nm.value.trim().replace(/^./,c=>c.toUpperCase()); document.getElementById("next").disabled=!tmp.name; });
+    document.getElementById("nm2").addEventListener("input",e=>tmp.friend2=e.target.value.trim().replace(/^./,c=>c.toUpperCase()));
+    document.getElementById("next").onclick=()=>{ initAudio(); Voice.warm(); go(1); };
+  } else if(qi===1){ // LOOK
+    setupCard.innerHTML=`<h2>Now let's make YOU!</h2>
+      <svg id="miniSvg" class="scene-mini" viewBox="44 34 132 210" preserveAspectRatio="xMidYMid meet" style="height:200px;display:block;margin:0 auto 10px"><g id="mAv"></g></svg>
+      <div class="row"><span class="label">Skin</span><div class="opts" id="skinO"></div></div>
+      <div class="row"><span class="label">Eyes</span><div class="opts" id="eyeO"></div></div>
+      <div class="row"><span class="label">Hair</span><div class="opts" id="hairO"></div></div>
+      <div class="row"><span class="label">Color</span><div class="opts" id="hcO"></div></div>
+      <div class="row"><span class="label">Outfit</span><div class="opts" id="outO"></div></div>
+      <div class="row"><span class="label">Extras</span><div class="opts" id="exO"></div></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:6px"><button class="pill" id="dice" style="background:var(--gold);color:#5b4500">🎲 Surprise me</button><button class="pill" id="resetLook">↺ Reset</button></div>
+      <button class="go" id="next">Next →</button><div class="micro">There's no wrong way to look.</div>`;
+    const upd=()=>{ const g=document.getElementById("mAv"); g.innerHTML=avatar(tmp); try{ const bb=g.getBBox(); document.getElementById("miniSvg").setAttribute("viewBox",`${(bb.x-10).toFixed(0)} ${(bb.y-10).toFixed(0)} ${(bb.width+20).toFixed(0)} ${(bb.height+20).toFixed(0)}`); }catch(e){} }; // auto-frame to the avatar's real bbox so the head is never clipped
+    sw("skinO",skins,"skin",upd); sw("eyeO",eyeCols,"eye",upd); pl("hairO",hairStyles,"hairStyle",upd); sw("hcO",hairCs,"hairColor",upd); pl("outO",outfits,"outfit",upd);
+    pl("exO",["None","Round","Square"],"glasses",upd);
+    document.getElementById("dice").onclick=()=>{ tmp.skin=pick(skins);tmp.eye=pick(eyeCols);tmp.hairStyle=pick(hairStyles);tmp.hairColor=pick(hairCs);tmp.outfit=pick(outfits);tmp.shirt=pick(shirts);tmp.glasses=pick(glassesOpt);tmp.freckles=pick(freckOpt);tmp.headwear=pick(headOpt); renderQ(); };
+    document.getElementById("resetLook").onclick=()=>{ const d=defaultChild(); ["skin","eye","freckles","glasses","hairStyle","hairColor","headwear","outfit","shirt"].forEach(k=>tmp[k]=d[k]); renderQ(); }; // reset the look to default
+    upd(); document.getElementById("next").onclick=()=>go(2);
+  } else if(qi===2){ // FRIEND
+    setupCard.innerHTML=`<h2>Pick your animal friend</h2><div class="opts" id="petO" style="gap:14px"></div>
+      <button class="go" id="next">Next →</button><div class="micro">Your friend will say your name and play with you.</div>`;
+    const box=document.getElementById("petO");
+    pets.forEach(p=>{ const d=document.createElement("div"); d.className="big-pick"+(tmp.pet===p?" sel":"");
+      d.innerHTML=`<svg viewBox="152 152 64 94" width="70" height="84">${companion(p).replace('translate(60,4)','translate(0,0)')}</svg><div style="font-weight:700;font-size:12px;color:#6f6a85">${friendName[p]}</div>`;
+      d.onclick=()=>{ tmp.pet=p; initAudio(); petSfx(p); renderQ(); }; box.appendChild(d); });
+    document.getElementById("next").onclick=()=>go(3);
+  } else if(qi===3){ // COLOR
+    setupCard.innerHTML=`<h2>What's your favorite color?</h2><div class="opts" id="colO" style="gap:14px;margin:16px 0"></div>
+      <button class="go" id="next">Next →</button><div class="micro">Tap it and watch your meadow change!</div>`;
+    const box=document.getElementById("colO");
+    shirts.forEach((hex,i)=>{ const d=document.createElement("div"); d.className="colorblob"+(tmp.favoriteColor.word===colorWords[i]?" sel":""); d.style.background=hex;
+      d.onclick=()=>{ tmp.favoriteColor={word:colorWords[i],hex}; document.documentElement.style.setProperty("--accent",hex); initAudio(); tone(523,.2,"sine",.12); renderQ(); }; box.appendChild(d); });
+    document.getElementById("next").onclick=()=>go(4);
+  } else { // AGE
+    setupCard.innerHTML=`<h2>One last thing</h2><div class="sub">How old is your little one?<br>(sets the gentle pace)</div>
+      <div class="opts" id="ageO" style="gap:14px;margin:16px 0"></div>
+      <button class="go" id="next">🌳 To the meadow!</button>`;
+    const box=document.getElementById("ageO");
+    [3,4,5,6,7,8].forEach(a=>{ const d=document.createElement("button"); d.className="pill"+(tmp.age===a?" sel":""); d.style.fontSize="18px"; d.style.padding="11px 15px"; d.textContent="🌱 "+a;
+      d.onclick=()=>{ tmp.age=a; renderQ(); }; box.appendChild(d); });
+    document.getElementById("next").onclick=()=>{ child=tmp; doReveal(); };
+  }
+  // "← Back" on every step after the first — wraps the primary button in a row, state persists in tmp
+  if(qi>0){ const nx=document.getElementById("next"); if(nx&&nx.parentNode){ const row=document.createElement("div"); row.style.cssText="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:8px";
+    const back=document.createElement("button"); back.className="pill"; back.textContent="← Back"; back.onclick=()=>go(qi-1);
+    nx.parentNode.insertBefore(row,nx); row.appendChild(back); row.appendChild(nx); nx.style.marginTop="0"; } }
+}
+function go(n){ qi=n; renderQ(); }
+function sw(id,arr,key,cb){ const b=document.getElementById(id); b.innerHTML=""; arr.forEach(c=>{ const s=document.createElement("div"); s.className="sw"+(tmp[key]===c?" sel":""); s.style.background=c; s.onclick=()=>{tmp[key]=c; b.querySelectorAll(".sw").forEach(x=>x.classList.remove("sel")); s.classList.add("sel"); cb&&cb();}; b.appendChild(s); }); }
+function pl(id,arr,key,cb){ const b=document.getElementById(id); b.innerHTML=""; arr.forEach(v=>{ const s=document.createElement("button"); s.className="pill"+(tmp[key]===v?" sel":""); s.textContent=v; s.onclick=()=>{tmp[key]=v; b.querySelectorAll(".pill").forEach(x=>x.classList.remove("sel")); s.classList.add("sel"); cb&&cb();}; b.appendChild(s); }); }
+
+/* ============================================================
+   TOOLS: play-again, mute, grown-up gate + corner, wind-down
+   ============================================================ */
+document.getElementById("playAgain").onclick=()=>{ initAudio(); lastInteract=performance.now(); if(windingDown){ windingDown=false; document.getElementById("skyTop").setAttribute("stop-color","#C3E7F8"); document.getElementById("stars").setAttribute("opacity","0"); }
+  if(state==="play"&&!activeActivity)offerActivity(); else if(state==="play")Voice.line(LINES.encourage,{}); };
+let muteHold=null;
+const muteDot=document.getElementById("muteDot");
+muteDot.addEventListener("pointerdown",()=>{ muteHold=setTimeout(()=>{ soundOn=!soundOn; muteDot.textContent=soundOn?"🔊":"🔇"; if(!soundOn&&"speechSynthesis"in window)speechSynthesis.cancel(); },600); });
+["pointerup","pointerleave","pointercancel"].forEach(ev=>muteDot.addEventListener(ev,()=>clearTimeout(muteHold)));
+
+/* parental gate */
+const gate=document.getElementById("gate"), grownup=document.getElementById("grownup"), gAnchor=document.getElementById("gAnchor");
+let gateHold=null;
+gAnchor.addEventListener("pointerdown",()=>{ gateHold=setTimeout(openGate,2000); });
+["pointerup","pointerleave","pointercancel"].forEach(ev=>gAnchor.addEventListener(ev,()=>clearTimeout(gateHold)));
+function openGate(){ const target=3; document.getElementById("gateTarget").textContent=target; const nums=[3,5,8].sort(()=>Math.random()-0.5);
+  const box=document.getElementById("gateNums"); box.innerHTML=""; nums.forEach(n=>{ const b=document.createElement("button"); b.className="gnum"; b.textContent=n; b.onclick=()=>{ if(n===target){ gate.classList.remove("show"); openCorner(); } else openGate(); }; box.appendChild(b); }); gate.classList.add("show"); }
+function openCorner(){ grownup.classList.add("show");
+  const seg=(id,arr,key,fmt)=>{ const b=document.getElementById(id); b.innerHTML=""; arr.forEach(v=>{ const s=document.createElement("button"); s.className="pill"+(child[key]===v?" sel":""); s.textContent=fmt?fmt(v):v; s.onclick=()=>{ child[key]=v; saveChild(); b.querySelectorAll(".pill").forEach(x=>x.classList.remove("sel")); s.classList.add("sel"); }; b.appendChild(s); }); };
+  seg("gAge",[3,4,5,6,7,8],"age"); seg("gPace",[0.9,1.0,1.2],"voicePace",v=>({0.9:"🐢",1.0:"🚶",1.2:"🐇"}[v])); seg("gWind",[5,10,15],"windDownMinutes",v=>v+"m");
+  const mt=document.getElementById("gMute"); mt.className="toggle"+(child.muteLearningTalk?" on":""); mt.onclick=()=>{ child.muteLearningTalk=!child.muteLearningTalk; mt.className="toggle"+(child.muteLearningTalk?" on":""); saveChild(); };
+}
+document.getElementById("gClose").onclick=()=>grownup.classList.remove("show");
+document.getElementById("gWindNow").onclick=()=>{ grownup.classList.remove("show"); startWindDown(); };
+document.getElementById("gReset").onclick=()=>{ if(confirm("Start over? This clears the saved meadow.")){ try{localStorage.removeItem("oncePuponAYou.child"); localStorage.removeItem("oncePuponAYou.progress");}catch(e){} location.reload(); } };
+document.getElementById("gShare").onclick=()=>{ const n=child.name||"my child"; const t=`${n}'s Meadow — a little learning game I made for ${n} ✨`;
+  if(navigator.share){ navigator.share({title:"Once Upon a You",text:t,url:location.href}).catch(()=>{}); } else { try{ navigator.clipboard.writeText(t+" "+location.href); alert("Copied a link to share!"); }catch(e){ alert(location.href); } } };
+
+/* wind-down */
+let windTimer=null;
+function armWindTimer(){ clearTimeout(windTimer); if(child&&child.windDownMinutes)windTimer=setTimeout(startWindDown, child.windDownMinutes*60000); }
+function startWindDown(){ if(windingDown)return; windingDown=true; clearActivity(); state="play";
+  document.getElementById("skyTop").setAttribute("stop-color","#E8D9EA"); document.getElementById("stage").style.transition="opacity 1.2s";
+  const stars=document.getElementById("stars"); stars.innerHTML=""; for(let i=0;i<10;i++){ const x=Math.random()*460+10,y=Math.random()*120+20; stars.innerHTML+=`<circle cx="${x}" cy="${y}" r="${1.4+Math.random()*1.6}" fill="#FBE08A"/>`; }
+  stars.style.transition="opacity 2s"; stars.setAttribute("opacity","1");
+  Voice.line(LINES.windDown,{solo:true}); }
+
+/* ============================================================
+   PWA (offline + installable) — inline manifest + blob SW
+   ============================================================ */
+(function(){ try{
+  const icon="data:image/svg+xml;base64,"+btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C3E7F8"/><stop offset="1" stop-color="#98CE6F"/></linearGradient></defs><rect width="192" height="192" rx="40" fill="url(#g)"/><circle cx="60" cy="56" r="22" fill="#FBDE7E"/><text x="96" y="150" font-size="70" text-anchor="middle">🦊</text><text x="150" y="60" font-size="40" text-anchor="middle">✨</text></svg>`);
+  const man={name:"Once Upon a You",short_name:"Once Upon a You",description:"A gentle, no-fail learning meadow starring your child.",start_url:".",display:"standalone",orientation:"any",background_color:"#EAF6FB",theme_color:"#6B5BD2",icons:[{src:icon,sizes:"192x192",type:"image/svg+xml",purpose:"any maskable"},{src:icon,sizes:"512x512",type:"image/svg+xml",purpose:"any maskable"}]};
+  const ml=document.createElement("link"); ml.rel="manifest"; ml.href="data:application/json;base64,"+btoa(unescape(encodeURIComponent(JSON.stringify(man)))); document.head.appendChild(ml);
+  const ai=document.createElement("link"); ai.rel="apple-touch-icon"; ai.href=icon; document.head.appendChild(ai);
+  if("serviceWorker" in navigator){ const sw=`const C="oua-v3";self.addEventListener("install",e=>{self.skipWaiting()});self.addEventListener("activate",e=>{e.waitUntil((async()=>{const ks=await caches.keys();await Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)));await self.clients.claim()})())});self.addEventListener("fetch",e=>{if(e.request.method!=="GET")return;e.respondWith((async()=>{try{const resp=await fetch(e.request);if(resp&&resp.ok){const cp=resp.clone();caches.open(C).then(c=>c.put(e.request,cp))}return resp}catch(err){const m=await caches.match(e.request);return m||Response.error()}})())});`;
+    const url=URL.createObjectURL(new Blob([sw],{type:"text/javascript"})); navigator.serviceWorker.register(url).catch(()=>{}); }
+}catch(e){} })();
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+requestAnimationFrame(loop);
+window.addEventListener("pointerdown",function warm(){ initAudio(); Voice.warm(); armWindTimer(); window.removeEventListener("pointerdown",warm); },{once:true});
+document.addEventListener("pointerdown",()=>{ lastInteract=performance.now(); armWindTimer(); });
+if(child && child.name){ /* returning */ renderAvatar(); applyAccent(); drawBlooms(); state="reveal"; setTimeout(()=>{ initAudio(); Voice.line(LINES.greeting,{solo:true,cb:()=>startPlay()}); setTimeout(()=>{ if(state==="reveal")startPlay(); },5000); },400); }
+else { startSetup(); }
+
+/* expose for headless verification */
+window.__OUY={ get child(){return child;}, get progress(){return progress;}, get state(){return state;}, get place(){return place;}, get av(){return av;}, walkTo, goPlace, offerActivity, startSoundHunt, startBerryCount, startMyName, startLetterGarden, startCountFind, startShapeHunt, startColorMatch, startAnimalSounds, startMemoryMatch, finishActivity, doReveal, startSetup, go, setTmp(o){Object.assign(tmp||(tmp=defaultChild()),o);}, get tmp(){return tmp;}, startWindDown, openGate,
+  tick:(n)=>loop(n||performance.now()), get walking(){return !!walk;} };
+</script>
+</body>
+</html>

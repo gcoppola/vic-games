@@ -1,0 +1,12 @@
+{
+  "title": "Vic's Games",
+  "tagline": "Little worlds to explore — playable on phone or computer. Pick one and dive in. ✨",
+  "build": 24,
+  "games": [
+    { "file": "warcraft.html", "src": "warcraft.html", "icon": "⚔️", "tag": "Strategy", "title": "Warbound: Orcs & Humans", "desc": "A classic pixel-art real-time strategy: mine gold, chop lumber, raise an army and battle the enemy.", "accent": "#ff9d4a" },
+    { "file": "wc3.html", "src": "warcraft3.html", "icon": "🛡️", "tag": "Strategy · HD", "title": "Warbound HD", "desc": "The same war, redrawn in a crisper, higher-definition style. Same build-and-battle gameplay.", "accent": "#5fb0ff" },
+    { "file": "reforged.html", "src": "reforged.html", "icon": "✨", "tag": "Strategy · Remastered", "title": "Warbound: Remastered", "desc": "A cinematic remaster with HDR bloom, dust, film grain and a golden battle UI.", "accent": "#ffd24a" },
+    { "file": "aethermoor.html", "src": "aethermoor.html", "icon": "🗡️", "tag": "3D · Action-RPG", "title": "Aethermoor", "desc": "An original third-person 3D action-RPG: explore a glowing world, fight, quest and level up. (Needs internet.)", "accent": "#4fe0b0" },
+    { "file": "fairyland.html", "src": "fairyland.html", "icon": "🦄", "tag": "Ages 6-7 · Learning", "title": "Sparklehoof's Meadow", "desc": "A gentle, no-fail magical game for little ones: ride a unicorn, collect sparkles, cast magic, and play kind counting & spelling quests with Twinkle the fairy. Add it to your home screen to play offline!", "accent": "#ff86c8" }
+  ]
+}

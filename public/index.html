@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vic's Games</title>
+<style>
+  :root{ --bg1:#1a1030; --bg2:#2a1745; --ink:#fff; }
+  *{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ min-height:100%; }
+  body{ font-family:'Trebuchet MS',system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:var(--ink);
+    background:
+      radial-gradient(900px 600px at 15% -10%, rgba(255,120,200,.20), transparent 60%),
+      radial-gradient(900px 600px at 90% 0%, rgba(110,170,255,.20), transparent 60%),
+      radial-gradient(1000px 700px at 50% 120%, rgba(120,255,190,.14), transparent 60%),
+      linear-gradient(160deg,var(--bg1),var(--bg2));
+    background-attachment:fixed; padding:34px 18px 50px; }
+  header{ text-align:center; margin:8px auto 30px; max-width:900px; }
+  h1{ font-size:clamp(34px,8vw,64px); font-weight:800; letter-spacing:.5px; line-height:1.02;
+    background:linear-gradient(90deg,#ffd76b,#ff9ad4,#9ad0ff,#9cf5c4); -webkit-background-clip:text; background-clip:text; color:transparent;
+    text-shadow:0 2px 30px rgba(255,180,230,.18); }
+  header p{ margin-top:12px; font-size:clamp(14px,3.4vw,18px); color:#d8c9f0; opacity:.9; }
+  .grid{ max-width:1040px; margin:0 auto; display:grid; gap:18px;
+    grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); }
+  .card{ position:relative; display:flex; flex-direction:column; gap:10px; text-decoration:none; color:var(--ink);
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:20px; padding:22px 22px 20px;
+    backdrop-filter:blur(6px); overflow:hidden; transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+    box-shadow:0 10px 30px rgba(0,0,0,.28); }
+  .card:before{ content:''; position:absolute; inset:0 0 auto 0; height:5px; background:var(--accent,#ff9ad4); }
+  .card:after{ content:''; position:absolute; right:-40px; top:-40px; width:160px; height:160px; border-radius:50%;
+    background:radial-gradient(circle,var(--accent,#ff9ad4),transparent 70%); opacity:.28; pointer-events:none; }
+  .card:hover,.card:focus-visible{ transform:translateY(-5px); border-color:var(--accent,#ff9ad4); box-shadow:0 16px 40px rgba(0,0,0,.4); outline:none; }
+  .card:active{ transform:translateY(-1px) scale(.99); }
+  .ico{ font-size:46px; line-height:1; filter:drop-shadow(0 4px 10px rgba(0,0,0,.35)); }
+  .card h2{ font-size:21px; font-weight:800; }
+  .tag{ display:inline-block; align-self:flex-start; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+    color:#1a1030; background:var(--accent,#ff9ad4); padding:3px 9px; border-radius:999px; }
+  .card p{ font-size:14.5px; line-height:1.5; color:#e7defa; opacity:.92; flex:1; }
+  .play{ align-self:flex-start; margin-top:4px; font-weight:800; font-size:15px; color:var(--accent,#ff9ad4); }
+  .play:after{ content:' \2192'; transition:margin-left .15s; }
+  .card:hover .play:after{ margin-left:5px; }
+  footer{ text-align:center; margin:34px auto 0; max-width:900px; color:#b9a9d6; font-size:13px; opacity:.7; }
+  noscript a{ color:#ffd76b; display:block; margin:6px 0; font-size:18px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1 id="title">Vic's Games</h1>
+    <p id="tagline">Little worlds to explore — playable on phone or computer. Pick one and dive in. ✨</p>
+  </header>
+
+  <main class="grid" id="grid"></main>
+
+  <noscript>
+    <div class="grid">
+      <a class="card" href="warcraft.html"><h2>⚔️ Warbound: Orcs &amp; Humans</h2></a>
+      <a class="card" href="wc3.html"><h2>🛡️ Warbound HD</h2></a>
+      <a class="card" href="reforged.html"><h2>✨ Warbound: Remastered</h2></a>
+      <a class="card" href="aethermoor.html"><h2>🗡️ Aethermoor</h2></a>
+      <a class="card" href="fairyland.html"><h2>🦄 Sparklehoof's Meadow</h2></a>
+    </div>
+  </noscript>
+
+  <footer>Made with love · tap a card to play — no install, no sign-up. 💜</footer>
+
+<script>
+  // Single source of truth = games.json (so the hub auto-updates as games are added/changed).
+  // Inline fallback only used if games.json can't be fetched (offline / first paint).
+  var FALLBACK = [
+    { file:"warcraft.html", icon:"⚔️", tag:"Strategy", title:"Warbound: Orcs & Humans", desc:"A classic pixel-art real-time strategy: mine gold, chop lumber, raise an army and battle the enemy.", accent:"#ff9d4a" },
+    { file:"wc3.html", icon:"🛡️", tag:"Strategy · HD", title:"Warbound HD", desc:"The same war, redrawn in a crisper, higher-definition style.", accent:"#5fb0ff" },
+    { file:"reforged.html", icon:"✨", tag:"Strategy · Remastered", title:"Warbound: Remastered", desc:"A cinematic remaster with HDR bloom, dust, film grain and a golden battle UI.", accent:"#ffd24a" },
+    { file:"aethermoor.html", icon:"🗡️", tag:"3D · Action-RPG", title:"Aethermoor", desc:"An original third-person 3D action-RPG: explore, fight, quest and level up. (Needs internet.)", accent:"#4fe0b0" },
+    { file:"fairyland.html", icon:"🦄", tag:"Ages 6-7 · Learning", title:"Sparklehoof's Meadow", desc:"A gentle, no-fail magical game for little ones, with counting & spelling quests. (Needs internet.)", accent:"#ff86c8" }
+  ];
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function render(list, build){ var grid=document.getElementById('grid'); grid.innerHTML='';
+    list.forEach(function(g){ var a=document.createElement('a'); a.className='card'; a.href=g.file+(build?('?v='+build):''); a.style.setProperty('--accent', g.accent||'#ff9ad4'); // ?v=build busts stale caches so a tapped game is always the latest
+      a.innerHTML = '<div class="ico">'+esc(g.icon||'🎮')+'</div>'
+        + (g.tag?'<span class="tag">'+esc(g.tag)+'</span>':'')
+        + '<h2>'+esc(g.title||g.file)+'</h2>'
+        + (g.desc?'<p>'+esc(g.desc)+'</p>':'')
+        + '<span class="play">Play</span>';
+      grid.appendChild(a); }); }
+  function applyHeader(d){ if(d&&d.title){ document.getElementById('title').textContent=d.title; document.title=d.title; }
+    if(d&&d.tagline){ document.getElementById('tagline').textContent=d.tagline; } }
+  render(FALLBACK); // instant paint
+  fetch('games.json?ts='+Date.now(), {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(d){
+    var games = Array.isArray(d) ? d : (d && d.games) ? d.games : null;
+    if(games && games.length){ applyHeader(d); render(games, d.build); }
+  }).catch(function(){ /* keep fallback */ });
+</script>
+</body>
+</html>

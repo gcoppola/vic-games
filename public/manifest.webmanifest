@@ -1,0 +1,17 @@
+{
+  "name": "Sparklehoof's Meadow",
+  "short_name": "Sparklehoof",
+  "description": "A gentle, no-fail magical learning game: ride a unicorn, collect sparkles, cast magic, and play kind counting & spelling quests.",
+  "start_url": "./fairyland.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#bfe3ff",
+  "theme_color": "#ff86c8",
+  "categories": ["education", "games", "kids"],
+  "icons": [
+    { "src": "sparkle-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "sparkle-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "sparkle-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
