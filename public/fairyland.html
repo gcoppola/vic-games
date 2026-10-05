@@ -178,6 +178,10 @@
   #tplay:active{transform:translateY(5px);box-shadow:0 2px 0 #b83f8c;}
   #loading{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:#ffd9f0;color:#c14d9e;font-size:22px;text-align:center;padding:24px;line-height:1.5;}
 
+  /* 🎃 pumpkin-hunt counter (under the jars) */
+  #pumpkinChip{left:calc(14px + var(--sal));top:calc(94px + var(--sat));padding:4px 12px;border-radius:16px;background:linear-gradient(#fff3e0,#ffd9a8);border:3px solid #fff;
+    font-weight:800;color:#b5520a;font-size:18px;box-shadow:0 4px 12px rgba(200,110,40,.3);}
+  #pumpkinChip.bump{animation:pkbump .5s;} @keyframes pkbump{50%{transform:scale(1.25);}}
   /* 📸 photo button (sits above ✨), camera flash, album + viewer */
   .photo{width:64px;height:64px;font-size:30px;border-width:4px;background:radial-gradient(circle at 38% 32%,#fff,#d4f0ff 70%,#8ad0ff);color:#2a6a9a;}
   #bPhoto{right:calc(66px + var(--sar));bottom:calc(198px + var(--sab));}
@@ -210,6 +214,7 @@
     #bLeft{left:calc(16px + var(--sal));bottom:calc(20px + var(--sab));} #bRight{left:calc(176px + var(--sal));bottom:calc(20px + var(--sab));} #bUp{left:calc(96px + var(--sal));bottom:calc(100px + var(--sab));}
     #bMagic,#magicring{right:calc(22px + var(--sar));bottom:calc(24px + var(--sab));}
     .photo{width:56px;height:56px;font-size:26px;} #bPhoto{right:calc(46px + var(--sar));bottom:calc(140px + var(--sab));}
+    #pumpkinChip{top:calc(80px + var(--sat));font-size:15px;padding:2px 9px;}
   }
   @media (max-width:725px){ /* portrait phone: tools become a column on the right, arc tucks under the jars, controls shrink so ✨ never covers ➡️ */
     .jar{width:48px;height:58px;} .jar .ico{font-size:20px;} .jar .cnt{font-size:12px;} #jars{gap:6px;}
@@ -220,6 +225,7 @@
     #bLeft{left:calc(12px + var(--sal));bottom:calc(36px + var(--sab));} #bRight{left:calc(108px + var(--sal));bottom:calc(36px + var(--sab));} #bUp{left:calc(60px + var(--sal));bottom:calc(124px + var(--sab));}
     #bMagic,#magicring{right:calc(16px + var(--sar));bottom:calc(36px + var(--sab));}
     .photo{width:56px;height:56px;font-size:26px;} #bPhoto{right:calc(40px + var(--sar));bottom:calc(152px + var(--sab));}
+    #pumpkinChip{top:calc(106px + var(--sat));font-size:15px;padding:2px 9px;}
   }
   @media (max-width:725px) and (max-height:520px){ /* small phone held sideways (e.g. iPhone SE): one compact row, no column clashing with ✨ */
     .jar{width:44px;height:52px;} .jar .ico{font-size:18px;}
@@ -228,6 +234,7 @@
     #bLeft{left:calc(16px + var(--sal));bottom:calc(20px + var(--sab));} #bRight{left:calc(176px + var(--sal));bottom:calc(20px + var(--sab));} #bUp{left:calc(96px + var(--sal));bottom:calc(100px + var(--sab));}
     #bMagic,#magicring{right:calc(22px + var(--sar));bottom:calc(24px + var(--sab));}
     #bPhoto{right:calc(46px + var(--sar));bottom:calc(140px + var(--sab));}
+    #pumpkinChip{top:calc(92px + var(--sat));}
   }
 </style>
 </head>
@@ -241,6 +248,7 @@
 <div id="arc" class="hud" style="display:none"></div>
 <div id="lvl" class="hud" style="display:none" title="Sparkle Level"><span id="lvlnum">1</span></div>
 <div id="jars" class="hud" style="display:none"></div>
+<div id="pumpkinChip" class="hud" style="display:none">🎃 <span id="pkN">0</span>/5</div>
 <div id="tools" class="hud" style="display:none">
   <div class="tool" id="tWardrobe" title="Dress up">👑</div>
   <div class="tool" id="tLocket" title="Words">💝</div>
@@ -265,6 +273,7 @@
     <div class="wrow"><div class="wlbl">🌈</div><div class="swatches" id="swMane"></div></div>
     <div class="wrow"><div class="wlbl">⭐</div><div class="swatches" id="swHorn"></div></div>
     <div class="wrow"><div class="wlbl">💖</div><div class="swatches" id="swTrail"></div></div>
+    <div class="wrow" id="hatRow" style="display:none"><div class="wlbl">🎩</div><div class="swatches" id="swHat"></div></div>
     <div id="wclose">✓</div>
   </div>
 </div>
@@ -293,6 +302,8 @@
   <div class="prow"><div class="pl">Learning often-ness</div><div class="pseg" id="pDens"></div></div>
   <div class="phead">Quiet time</div>
   <div class="prow"><div class="pl">Sleepy meadow after</div><div class="pseg" id="pWind"></div></div>
+  <div class="phead">Seasonal</div>
+  <div class="prow"><div class="pl">Pumpkin patch in October 🎃</div><div class="ptog" id="pSeason"></div></div>
   <div id="presetbtn">Start fresh (clear all progress)</div>
   <div id="pclose">✓</div>
 </div></div>
@@ -565,7 +576,7 @@ for(let i=0;i<(LOW?1:2);i++){ const bl=balloon((hash(i,9)-0.5)*MAP*1.2,30+hash(i
 /* ============================================================
    SPARKLEHOOF (the unicorn) + look config
    ============================================================ */
-const LOOK={ body:0xffffff, mane:'rainbow', horn:0xffe66b, trail:'⭐' };
+const LOOK={ body:0xffffff, mane:'rainbow', horn:0xffe66b, trail:'⭐', hat:'none' };
 try{ const s=JSON.parse(localStorage.getItem('sparklehoof_look')||'null'); if(s)Object.assign(LOOK,s); }catch(e){}
 let LEVEL=1, LXP=0, MAGIC_BIG=false; // Sparkle Level progression
 try{ const s=JSON.parse(localStorage.getItem('sparklehoof_level')||'null'); if(s){ LEVEL=Math.max(1,(s.l|0)||1); LXP=Math.max(0,Math.min(xpToNext(LEVEL)-1,(s.xp|0))); MAGIC_BIG=LEVEL>=8; } }catch(e){} // clamp stale XP to a valid remainder; magic is a pure function of level
@@ -628,6 +639,13 @@ function buildUnicornBody(opt){
   // spiral glowing horn (+ point light only for the player)
   const hornMesh=new THREE.Mesh(HORN_GEO,new THREE.MeshStandardMaterial({color:opt.horn,emissive:opt.horn,emissiveIntensity:opt.hornGlow||1.6,roughness:0.2,metalness:0.35}));
   hornMesh.position.set(0.16,0.56,0); hornMesh.rotation.z=-0.22; head.add(hornMesh);
+  if(opt.hat==='witch'){ const hat=new THREE.Group(), hp=new THREE.MeshStandardMaterial({color:0x6b34a0,roughness:0.7}); // 🎃 prize: a (friendly) witch hat, tipped back behind the horn
+    const brim=new THREE.Mesh(new THREE.CylinderGeometry(0.66,0.7,0.06,22),hp); hat.add(brim);
+    const cone=new THREE.Mesh(new THREE.ConeGeometry(0.38,0.9,18),hp); cone.position.y=0.47; hat.add(cone);
+    const tip=new THREE.Mesh(new THREE.ConeGeometry(0.17,0.55,14),hp); tip.position.set(-0.13,1.08,0); tip.rotation.z=0.75; hat.add(tip); // the floppy bent tip makes it read as a witch hat
+    const band=new THREE.Mesh(new THREE.CylinderGeometry(0.37,0.37,0.11,18),new THREE.MeshStandardMaterial({color:0xffb347,emissive:0xff8a00,emissiveIntensity:0.35})); band.position.y=0.08; hat.add(band);
+    const star=new THREE.Mesh(new THREE.OctahedronGeometry(0.09,0),new THREE.MeshStandardMaterial({color:0xffe66b,emissive:0xffd24a,emissiveIntensity:1.2})); star.position.set(0.12,0.45,0.27); hat.add(star);
+    hat.position.set(-0.24,0.56,0); hat.rotation.z=0.3; head.add(hat); }
   let hornLight=null; if(opt.withLight){ hornLight=new THREE.PointLight(opt.horn,1.3,9); hornLight.position.set(0.24,1.05,0); head.add(hornLight); }
   // fuller forelock
   { const fl=new THREE.Mesh(new THREE.SphereGeometry(0.22,12,10),MM(maneCols[0])); fl.scale.set(0.85,1.25,0.55); fl.position.set(0.06,0.42,0); fl.rotation.z=0.45; head.add(fl); maneParts.push(fl);
@@ -664,7 +682,7 @@ function disposeHero(g){ const cached=new Set(__maneMatCache.values()); g.traver
   const ms=o.material?(Array.isArray(o.material)?o.material:[o.material]):[]; ms.forEach(m=>{ if(!U_SHARED_MATS.has(m) && !cached.has(m)) m.dispose(); }); }); }
 let maneShimmer=false;
 function buildUnicorn(){ if(uni){ scene.remove(uni); disposeHero(uni); }
-  const r=buildUnicornBody({body:LOOK.body, mane:LOOK.mane, horn:LOOK.horn, hornGlow:2.2, withLight:true, deluxe:true});
+  const r=buildUnicornBody({body:LOOK.body, mane:LOOK.mane, horn:LOOK.horn, hat:LOOK.hat, hornGlow:2.2, withLight:true, deluxe:true});
   uni=r.group; maneParts=r.maneParts; hornMesh=r.hornMesh; hornLight=r.hornLight; maneShimmer=(LOOK.mane==='shimmer');
   if(LOW && hornMesh){ const hg=glowSprite(LOOK.horn===0xffffff?0xfff3c0:LOOK.horn,1.5,0.55); hg.position.set(0,0.35,0); hornMesh.add(hg); hornGlowSprite=hg; } // soft horn glow on mobile (no bloom there); animated by magic charge in update()
   uni.scale.setScalar(1.3); scene.add(uni);
@@ -707,11 +725,11 @@ let totalCollected=(COUNT['⭐']||0)+(COUNT['💎']||0)+(COUNT['💖']||0)+(COUN
    ============================================================ */
 function deepAssign(t,s){ if(!s||typeof s!=='object')return t; for(const k in s){ if(s[k]&&typeof s[k]==='object'&&!Array.isArray(s[k])){ t[k]=t[k]||{}; deepAssign(t[k],s[k]); } else t[k]=s[k]; } return t; }
 const SETTINGS={ skills:{counting:true,colorsShapes:true,letters:true,sightWords:true,patterns:true,feelings:true,science:true},
-  ageStop:2, holdSteady:false, narrationMute:false, speechRate:1.02, density:1, windDownMin:0 }; // default tuned for 6-8 (parent can dial younger)
+  ageStop:2, holdSteady:false, narrationMute:false, speechRate:1.02, density:1, windDownMin:0, seasonal:true }; // default tuned for 6-8 (parent can dial younger)
 try{ deepAssign(SETTINGS, JSON.parse(localStorage.getItem('sparklehoof_settings')||'null')); }catch(e){}
 if(!SETTINGS.skills||typeof SETTINGS.skills!=='object') SETTINGS.skills={counting:true,colorsShapes:true,letters:true,sightWords:true,patterns:true,feelings:true,science:true};
 SETTINGS.ageStop=Math.min(3,Math.max(0,SETTINGS.ageStop|0)); SETTINGS.density=Math.min(2,Math.max(0,SETTINGS.density|0)); SETTINGS.windDownMin=Math.max(0,SETTINGS.windDownMin|0);
-SETTINGS.speechRate=(+SETTINGS.speechRate>=0.5&&+SETTINGS.speechRate<=2)?+SETTINGS.speechRate:1.02; SETTINGS.holdSteady=!!SETTINGS.holdSteady; SETTINGS.narrationMute=!!SETTINGS.narrationMute;
+SETTINGS.seasonal=SETTINGS.seasonal!==false; SETTINGS.speechRate=(+SETTINGS.speechRate>=0.5&&+SETTINGS.speechRate<=2)?+SETTINGS.speechRate:1.02; SETTINGS.holdSteady=!!SETTINGS.holdSteady; SETTINGS.narrationMute=!!SETTINGS.narrationMute;
 const DISCOVERED={ countedTo:0, words:[], letters:[], feelings:[], shapes:[], shapesSeen:{}, challenges:0, worldsVisited:[] };
 try{ deepAssign(DISCOVERED, JSON.parse(localStorage.getItem('sparklehoof_discovered')||'null')); }catch(e){}
 /* per-skill MASTERY (stealth assessment): quietly unlocks harder quest TIERS as the child succeeds, capped by the parent Age band */
@@ -1421,14 +1439,16 @@ function bandShimmer(){ const bands=document.querySelectorAll('#arc .band'); ban
 const SW={ body:[0xffffff,0xfff0a0,0xffc8ec,0xc9b3ff,0xb3e0ff,0xb6ffcf,0xffd0a0,0xffb3c8,0x7fd0ff,0xff7ac0],
   mane:['rainbow','shimmer',0xff6b6b,0xffb86b,0xffe66b,0x8ce66b,0x6bc6ff,0xb36bff,0xff9ad4,0x00d0a0,0xffffff],
   horn:[0xffe66b,0xff9ad4,0x8ad0ff,0xb38aff,0xffffff,0x8ce66b,0xff4d6d,0x00e5ff],
-  trail:['⭐','💖','🫧','🌸','🌟','✨','🌈','💫'] };
+  trail:['⭐','💖','🫧','🌸','🌟','✨','🌈','💫'], hat:['none','witch'] };
+const HAT_ICON={none:'🦄',witch:'🧙'};
 // new swatches unlock by Sparkle Level (existing ones have no entry = available from level 1; never locks a current pick)
 const SWMIN=new Map([['body:'+0x7fd0ff,6],['body:'+0xff7ac0,14],['mane:'+0x00d0a0,11],['mane:'+0xffffff,18],['horn:'+0xff4d6d,3],['horn:'+0x00e5ff,12],['trail:🌈',4],['trail:💫',9]]);
 function swMinLevel(slot,val){ return SWMIN.get(slot+':'+val)||1; }
-function buildSwatches(){ [['swBody','body'],['swMane','mane'],['swHorn','horn'],['swTrail','trail']].forEach(([id,slot])=>{
+function buildSwatches(){ const hr=document.getElementById('hatRow'); if(hr)hr.style.display=UNLOCK.witchHat?'flex':'none';
+  [['swBody','body'],['swMane','mane'],['swHorn','horn'],['swTrail','trail'],['swHat','hat']].forEach(([id,slot])=>{
   const el=document.getElementById(id); if(!el)return; el.innerHTML='';
   SW[slot].forEach(val=>{ const sw=document.createElement('div'); const prizeLock=(val==='shimmer'&&!UNLOCK.rainbowMane), need=swMinLevel(slot,val), locked=(need>LEVEL||prizeLock)&&LOOK[slot]!==val; sw.className='sw'+(LOOK[slot]===val?' sel':'');
-    if(slot==='trail'){ sw.style.background='#fff'; sw.style.fontSize='26px'; sw.style.display='flex'; sw.style.alignItems='center'; sw.style.justifyContent='center'; sw.textContent=locked?'🔒':val; }
+    if(slot==='trail'||slot==='hat'){ sw.style.background='#fff'; sw.style.fontSize='26px'; sw.style.display='flex'; sw.style.alignItems='center'; sw.style.justifyContent='center'; sw.textContent=locked?'🔒':(slot==='hat'?HAT_ICON[val]:val); }
     else if(val==='rainbow'){ sw.style.background='linear-gradient(135deg,#ff6b6b,#ffe66b,#6bc6ff,#b36bff)'; }
     else if(val==='shimmer'){ sw.style.background='conic-gradient(#ff6b6b,#ffe66b,#8ce66b,#6bc6ff,#b36bff,#ff9ad4,#ff6b6b)'; if(!locked){ sw.textContent='✨'; sw.style.fontSize='22px'; sw.style.display='flex'; sw.style.alignItems='center'; sw.style.justifyContent='center'; } }
     else sw.style.background='#'+val.toString(16).padStart(6,'0');
@@ -1513,6 +1533,7 @@ const BADGES=[
   {e:'🔁',l:'Pattern Spotter',got:()=>(DISCOVERED.patterns|0)>=3},
   {e:'🙈',l:'Super Seeker',got:()=>(DISCOVERED.seekFound|0)>=3},
   {e:'📸',l:'Photographer',got:()=>PHOTOS.length>=1},
+  {e:'🎃',l:'Pumpkin Hunter',got:()=>(DISCOVERED.pumpkins|0)>=5},
   {e:'🌍',l:'World Wanderer',got:()=>{ const v=DISCOVERED.worldsVisited||[]; return worldsReachable().filter(w=>!w.home).every(w=>v.includes(w.key)); }},
 ];
 const TRAIL_STONES=[
@@ -1571,12 +1592,14 @@ function renderDiscovered(){ const el=document.getElementById('pdisc'); if(!el)r
   if(d.feelings&&d.feelings.length) L.push('💗 Feelings: '+d.feelings.join(', '));
   if(d.patterns) L.push('🔁 Patterns solved: '+d.patterns);
   if(d.seekFound) L.push('🙈 Hide & seek finds: '+d.seekFound);
+  if(d.pumpkins) L.push('🎃 Pumpkins found: '+d.pumpkins);
   el.innerHTML = L.length>1||d.countedTo? L.join('<br>') : 'Play together to discover numbers, words, shapes and feelings!'; }
 function buildParentPanel(){ const sk=document.getElementById('pskills'); sk.innerHTML='';
   SKILL_LABELS.forEach(p=>{ const row=document.createElement('div'); row.className='prow'; const lbl=document.createElement('div'); lbl.className='pl'; lbl.textContent=p[1]; row.appendChild(lbl);
     const tg=document.createElement('div'); tg.className='ptog'+(skillOn(p[0])?' on':''); tg.addEventListener('click',()=>{ SETTINGS.skills[p[0]]=!SETTINGS.skills[p[0]]; tg.classList.toggle('on'); persistSettings(); }); row.appendChild(tg); sk.appendChild(row); });
   pSeg('pAge',['4-5','6-7','7-8','8-9'],Math.min(3,SETTINGS.ageStop|0),i=>{ SETTINGS.ageStop=i; eduLevel=Math.max(eduLevel,i); persistSettings(); persist(); clampLevelToCap(); updateLevelBadge(); }); // re-eval level cap (and clamp) when band changes
   pTog('pHold',SETTINGS.holdSteady,v=>{ SETTINGS.holdSteady=v; persistSettings(); });
+  pTog('pSeason',SETTINGS.seasonal,v=>{ SETTINGS.seasonal=v; persistSettings(); applySeason(); });
   pTog('pNarMute',SETTINGS.narrationMute,v=>{ SETTINGS.narrationMute=v; if(v) stopSpeech(); persistSettings(); });
   pSeg('pRate',['🐢','🚶','🐇'],(SETTINGS.speechRate<=0.85?0:(SETTINGS.speechRate>=1.2?2:1)),i=>{ SETTINGS.speechRate=[0.8,1.02,1.2][i]; persistSettings(); });
   pSeg('pDens',['Rare','Some','Lots'],Math.min(2,SETTINGS.density|0),i=>{ SETTINGS.density=i; persistSettings(); });
@@ -1900,6 +1923,68 @@ function startAmbientPad(){ if(!AC||pad)return; try{ pad=AC.createGain(); pad.ga
 function setPadGain(){ if(pad&&AC){ try{ pad.gain.setTargetAtTime(soundOn?0.04:0.0001,AC.currentTime,0.6);}catch(e){} } }
 
 /* ============================================================
+   🎃 PUMPKIN SEASON (October, or ?season=halloween) — a glowing patch of FRIENDLY
+   jack-o'-lanterns, two giggly ghosts, and a 5-pumpkin counting hunt each visit
+   whose first full find wins a witch hat for dress-up. Grown-ups can switch it off.
+   ============================================================ */
+const SEASON_PARAM=(new URLSearchParams(location.search).get('season')||'').toLowerCase();
+function pumpkinSeason(){ if(SEASON_PARAM==='off'||!SETTINGS.seasonal)return false; return SEASON_PARAM==='halloween'||new Date().getMonth()===9; }
+const PATCH={x:34,z:40,r:9}, HUNT_N=5;
+const PUMPKIN_GEO=(()=>{ const parts=[];
+  for(let i=0;i<8;i++){ const a=i/8*6.28; parts.push(tintGeo(new THREE.SphereGeometry(0.42,12,10).scale(0.62,0.8,0.62).translate(Math.cos(a)*0.36,0.5,Math.sin(a)*0.36),0xff8a1f)); } // ribs
+  parts.push(tintGeo(new THREE.SphereGeometry(0.5,12,10).scale(1,0.85,1).translate(0,0.5,0),0xff9a2e));
+  parts.push(tintGeo(new THREE.CylinderGeometry(0.07,0.1,0.32,6).translate(0,1.05,0),0x5a8a2a));
+  parts.push(tintGeo(new THREE.SphereGeometry(0.16,8,6).scale(1.4,0.3,0.8).translate(0.16,1.0,0.05),0x6dbb3a));
+  const g=mergeGeometries(parts); g.computeVertexNormals(); return g; })();
+const PUMPKIN_MAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.6,emissive:0xff6a00,emissiveIntensity:0.08});
+const PUMPKIN_FACE=(()=>{ const c=document.createElement('canvas'); c.width=c.height=128; const x=c.getContext('2d'); x.fillStyle='#ffdf5a'; x.shadowColor='#ffb000'; x.shadowBlur=10;
+  for(const ex of [42,86]){ x.beginPath(); x.ellipse(ex,52,11,14,0,0,6.28); x.fill(); } // round, friendly eyes
+  x.beginPath(); x.moveTo(30,74); x.quadraticCurveTo(64,118,98,74); x.quadraticCurveTo(64,96,30,74); x.fill(); // big smile
+  x.fillStyle='rgba(255,140,170,.75)'; for(const cx of [26,102]){ x.beginPath(); x.arc(cx,72,8,0,6.28); x.fill(); } // rosy cheeks
+  return new THREE.MeshBasicMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,opacity:0.7}); })();
+const PFACE_GEO=new THREE.PlaneGeometry(0.78,0.78);
+let pumpkinGroup=null, ghosts=[], huntLeft=[], huntFound=0, ghostBooAt=0, pkHintBase=0;
+function placeFace(d,x,y,z,s,yaw){ d.position.set(x+Math.sin(yaw)*0.6*s,y+0.55*s,z+Math.cos(yaw)*0.6*s); d.rotation.set(0,yaw,0); d.scale.set(s,s,s); }
+function huntPumpkin(x,z){ const g=new THREE.Group(), h=groundH(x,z); g.add(new THREE.Mesh(PUMPKIN_GEO,PUMPKIN_MAT)); const f=new THREE.Mesh(PFACE_GEO,PUMPKIN_FACE); f.position.set(0,0.55,0.61); g.add(f);
+  g.add(glowSprite(0xffa040,2.6,LOW?0.55:0.35)); g.position.set(x,h,z); g.scale.setScalar(0.95); g.userData={yaw:Math.random()*6.28,ph:Math.random()*6.28}; meadow.add(g); return g; }
+function buildPumpkinPatch(){ if(pumpkinGroup)return; pumpkinGroup=new THREE.Group(); meadow.add(pumpkinGroup);
+  const spots=[]; for(let i=0;spots.length<12&&i<200;i++){ const a=Math.random()*6.28,r=Math.sqrt(Math.random())*PATCH.r,x=PATCH.x+Math.cos(a)*r,z=PATCH.z+Math.sin(a)*r; if(spots.every(p=>Math.hypot(p.x-x,p.z-z)>2.2))spots.push({x,z,s:0.9+Math.random()*0.8}); }
+
+  instDecor(pumpkinGroup,PUMPKIN_GEO,PUMPKIN_MAT,spots.length,(i,d)=>{ const p=spots[i]; d.position.set(p.x,groundH(p.x,p.z),p.z); d.rotation.set(0,Math.random()*6.28,0); d.scale.set(p.s,p.s,p.s); });
+  instDecor(pumpkinGroup,PFACE_GEO,PUMPKIN_FACE,spots.length,(i,d)=>{ const p=spots[i]; placeFace(d,p.x,groundH(p.x,p.z),p.z,p.s,Math.atan2(-p.x,-p.z)); }); // faces turn toward the middle of the meadow, where she arrives from
+  const hay=new THREE.MeshStandardMaterial({color:0xe8c35a,roughness:1}); [[-1,1],[1.2,-0.4],[0,-1.4]].forEach(([dx,dz],i)=>{ const b=new THREE.Mesh(new THREE.BoxGeometry(2.2,1.1,1.3),hay), x=PATCH.x+dx*(PATCH.r+2.5), z=PATCH.z+dz*(PATCH.r+1.5); b.position.set(x,groundH(x,z)+0.55,z); b.rotation.y=i; pumpkinGroup.add(b); });
+  const sc=document.createElement('canvas'); sc.width=256; sc.height=96; const sx=sc.getContext('2d'); sx.fillStyle='#9c6b4a'; sx.fillRect(0,0,256,96); sx.fillStyle='#fff4dc'; sx.font='bold 34px "Comic Sans MS",sans-serif'; sx.textAlign='center'; sx.textBaseline='middle'; sx.fillText('🎃 Pumpkins',128,50);
+  const sign=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1.2),new THREE.MeshStandardMaterial({map:new THREE.CanvasTexture(sc),roughness:0.9,side:THREE.DoubleSide})); const sxp=PATCH.x-PATCH.r*0.7, szp=PATCH.z-PATCH.r-1.5; sign.position.set(sxp,groundH(sxp,szp)+2.2,szp); sign.lookAt(0,sign.position.y,0); pumpkinGroup.add(sign);
+  const post=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.12,2,6),new THREE.MeshStandardMaterial({color:0x8a5a3a})); post.position.set(sxp,groundH(sxp,szp)+1,szp); pumpkinGroup.add(post);
+  // two friendly ghosts (round, giggly — not scary)
+  const gm=new THREE.MeshStandardMaterial({color:0xffffff,emissive:0xdfe8ff,emissiveIntensity:0.35,roughness:0.6,transparent:true,opacity:0.92});
+  for(let i=0;i<2;i++){ const g=new THREE.Group(); const b=new THREE.Mesh(new THREE.SphereGeometry(0.7,14,12),gm); b.scale.set(1,1.15,1); g.add(b);
+    const tail=new THREE.Mesh(new THREE.ConeGeometry(0.66,1.1,14,1,true),gm); tail.position.y=-0.85; tail.rotation.x=Math.PI; g.add(tail);
+    for(const s2 of[-1,1]){ const e=new THREE.Mesh(new THREE.SphereGeometry(0.1,8,8),EYEMAT); e.position.set(0.22*s2,0.18,0.62); g.add(e); }
+    const m=new THREE.Mesh(new THREE.SphereGeometry(0.09,8,8),new THREE.MeshStandardMaterial({color:0xff8ab8})); m.scale.set(1.3,0.8,0.6); m.position.set(0,-0.06,0.66); g.add(m);
+    const a=i*Math.PI+0.6; g.userData={a,ph:i*2}; pumpkinGroup.add(g); ghosts.push(g); }
+  // the hunt: 5 little glowing pumpkins hidden around the meadow
+  for(let i=0;huntLeft.length<HUNT_N&&i<400;i++){ const a=Math.random()*6.28,d=22+Math.random()*(MAP-40),x=Math.cos(a)*d,z=Math.sin(a)*d;
+    if(nearCastle(x,z)||nearPond(x,z)||nearStart(x,z)||Math.hypot(x-PATCH.x,z-PATCH.z)<PATCH.r+6||huntLeft.some(p=>Math.hypot(p.position.x-x,p.position.z-z)<24))continue; huntLeft.push(huntPumpkin(x,z)); }
+  huntFound=0; pkHintBase=performance.now(); updatePumpkinChip(); }
+function updatePumpkinChip(bump){ const c=document.getElementById('pumpkinChip'); if(!c)return; const on=!!pumpkinGroup&&pumpkinGroup.visible&&gameState==='play';
+  c.style.display=on?'block':'none'; document.getElementById('pkN').textContent=huntFound; if(bump){ c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } }
+function applySeason(){ const on=pumpkinSeason(); if(on&&!pumpkinGroup&&gameState==='play'){ buildPumpkinPatch(); setTimeout(()=>learnNarrate('It is pumpkin season! Five little pumpkins are hiding in the meadow. Can you find them all?'),2600); }
+  if(pumpkinGroup){ pumpkinGroup.visible=on; huntLeft.forEach(p=>p.visible=on); } updatePumpkinChip(); }
+function pumpkinTick(dt){ if(!pumpkinGroup||!pumpkinGroup.visible||zone!=='meadow')return; const t=performance.now()*0.001;
+  PUMPKIN_FACE.opacity=0.55+0.45*(nightF||0); PUMPKIN_MAT.emissiveIntensity=0.08+0.5*(nightF||0); // candle-glow grows at dusk
+  for(const g of ghosts){ const u=g.userData; u.a+=dt*0.35; const x=PATCH.x+Math.cos(u.a)*(PATCH.r+3), z=PATCH.z+Math.sin(u.a)*(PATCH.r+3); g.position.set(x,groundH(x,z)+2.4+Math.sin(t*1.6+u.ph)*0.5,z); g.rotation.y=-u.a;
+    if(Math.hypot(x-P.x,z-P.z)<6 && t-ghostBooAt>20){ ghostBooAt=t; fairySay('A friendly ghost says boo! Hee hee!'); for(let i=0;i<10;i++) spark(x,g.position.y,z,0xeef4ff,0.6,2); } }
+  for(let i=huntLeft.length-1;i>=0;i--){ const p=huntLeft[i], u=p.userData; u.ph+=dt; p.rotation.y=u.yaw+Math.sin(u.ph*1.2)*0.25; p.position.y=groundH(p.position.x,p.position.z)+Math.abs(Math.sin(u.ph*2.4))*0.25;
+    if(Math.hypot(p.position.x-P.x,p.position.z-P.z)<3.4){ meadow.remove(p); huntLeft.splice(i,1); huntFound++; DISCOVERED.pumpkins=(DISCOVERED.pumpkins|0)+1; persistDiscovered(); recordDiscovery('countedTo',null,huntFound);
+      celebrate(p.position.x,p.position.y+1,p.position.z,2); updatePumpkinChip(true); addXP(1); pkHintBase=performance.now();
+      if(huntFound<HUNT_N) learnNarrate(numWord(huntFound)+' '+plural(huntFound,'pumpkin')+'!'+(huntFound===HUNT_N-1?' Just one more!':''));
+      else pumpkinPrize(); } } }
+function pumpkinPrize(){ fanfare(); showPop('🎃','All 5 pumpkins!'); addXP(3);
+  if(!UNLOCK.witchHat){ UNLOCK.witchHat=true; LOOK.hat='witch'; persist(); buildUnicorn(); buildSwatches(); setTimeout(()=>{ showPop('🧙','Witch Hat!'); fairySay('Five pumpkins! You found them all! Here is a magic witch hat. You can take it off in dress up.'); },2300); }
+  else learnNarrate('Five pumpkins! You found them all! Hooray!'); }
+
+/* ============================================================
    UPDATE LOOP
    ============================================================ */
 const trailEmit={t:0};
@@ -2015,7 +2100,7 @@ function update(dt){
     if(w.portal){ w.portal.rotation.z+=dt*0.7; if(Math.hypot(P.x-w.portal.position.x,P.z-w.portal.position.z)<3.6) returnToMeadow(); }
     if(Math.random()<0.16) spark(P.x+(Math.random()-0.5)*2.2, w.cy+0.5+Math.random()*1.2, P.z+(Math.random()-0.5)*2.2, (zone==='cave'?0x9ad8ff:zone==='candy'?0xffd0ec:0xffffff), 0.45, 1.2); }
 
-  updateSoundGarden(dt); updateMood(dt); questTick(dt); challengeTick(dt);
+  updateSoundGarden(dt); updateMood(dt); questTick(dt); challengeTick(dt); pumpkinTick(dt);
   // grown flowers + magic shape-beds pop in
   for(const f of grownFlowers){ if(f.scale.x<1){ f.scale.addScalar(dt*3); if(f.scale.x>1)f.scale.setScalar(1); } }
   // ---- graphics polish (build 24): horn charge glow + cast-ring/level-pillar fades + pond shimmer + drifting fireflies (all cheap, no post-FX) ----
@@ -2055,6 +2140,7 @@ function guideTarget(){ if(zone!=='meadow'||anyOverlayOpen()||CH.bubble||mood.bu
   const q=QUEST.active; if(q&&q.kind==='seek'){ if(q.phase==='seek'&&q.t>20) return {p:q.pal.position,dy:2.4,icon:'🙈'}; } // hide & seek: only a hint after a good try
   else if(q&&q.pal&&(q.kind!=='bring'||q.ready)) return {p:q.pal.position,dy:2.4,icon:PAL_E[q.pal.userData.kind]||'🦄'}; // bring-quests point the way once the basket is full
   if(magicStar){ const age=(performance.now()-(magicStar.userData.born||0))/1000; if(age<15||(age>60&&age%60<10)) return {p:magicStar.position,dy:0,icon:'🌟'}; } // the star nudges now and then, not nonstop
+  if(huntLeft.length && pumpkinGroup && pumpkinGroup.visible){ const s2=(performance.now()-pkHintBase)/1000; if(s2>40 && s2%45<8){ let best=null,bd=1e9; for(const p of huntLeft){ const d=Math.hypot(p.position.x-P.x,p.position.z-P.z); if(d<bd){bd=d;best=p;} } if(best) return {p:best.position,dy:1,icon:'🎃'}; } } // a pumpkin hint if she's been looking a while
   return null; }
 function updateGuide(){ const t=guideTarget(); if(!t){ if(guideShown){ guideEl.style.display='none'; guideShown=false; } return; }
   __gv.set(t.p.x,t.p.y+t.dy,t.p.z).project(camera); let x=__gv.x, y=__gv.y; const behind=__gv.z>1; if(behind){ x=-x; y=-y; if(Math.hypot(x,y)<0.05){ x=0; y=-1; } }
@@ -2118,10 +2204,11 @@ function startGame(){ initAudio(); if(AC&&AC.state==='suspended')AC.resume();
   ['arc','jars','tools','lvl'].forEach(id=>{ const e=document.getElementById(id); if(e)e.style.display='flex'; }); clampLevelToCap(); updateLevelBadge();
   ['bUp','bLeft','bRight','bMagic','magicring','bPhoto'].forEach(id=>document.getElementById(id).style.display=id==='magicring'?'block':'flex');
   document.getElementById('title').style.display='none';
-  gameState='play';
+  gameState='play'; applySeason();
   say('idle'); setTimeout(()=>fairySay("Let's find sparkly stars!"),700);
 }
 document.getElementById('tplay').addEventListener('click',startGame);
+if(pumpkinSeason()){ const sm=document.querySelector('#tlogo small'); if(sm)sm.textContent='🎃 pumpkin season! 🎃'; }
 
 ui.width=W; ui.height=H;
 if(useComposer) buildComposer(); // not built at all on LOW — no shader compile stall either
@@ -2148,7 +2235,7 @@ Object.assign(window.__SP,{ openParentPanel, resetProfile, buildParentPanel, per
   startChallenge, offerRound, onTilePick, CHALLENGE_DEFS, CH, DISCOVERED,
   MASTERY, recordMastery, numTier:()=>numTier(), litTier:()=>litTier(), numCeiling:()=>numCeiling(),
   forceHigh:()=>{ AMBIENCE.low=false; buildStars(); buildCritters(); }, startWeather });
-Object.assign(window.__SP,{ LOOK, UNLOCK, EARNED_PALS, PHOTOS, takePhoto, unicornTrick, startSeek, FRIENDS:friends, guideShown:()=>guideShown, maneShimmer:()=>maneShimmer, flyWings:()=>flyWings, enterWorld:(k)=>enterWorld(k), openWorldMap:()=>openWorldMap(), buildWorldMap:()=>buildWorldMap(), WORLDS,
+Object.assign(window.__SP,{ pumpkinState:()=>({built:!!pumpkinGroup,visible:!!(pumpkinGroup&&pumpkinGroup.visible),left:huntLeft.length,found:huntFound,hunt:huntLeft.map(p=>({x:p.position.x,z:p.position.z}))}), applySeason, LOOK, UNLOCK, EARNED_PALS, PHOTOS, takePhoto, unicornTrick, startSeek, FRIENDS:friends, guideShown:()=>guideShown, maneShimmer:()=>maneShimmer, flyWings:()=>flyWings, enterWorld:(k)=>enterWorld(k), openWorldMap:()=>openWorldMap(), buildWorldMap:()=>buildWorldMap(), WORLDS,
   worldState:()=>({zone:zone, unlocked:[...UNLOCKED_WORLDS], visited:(DISCOVERED.worldsVisited||[]).slice(), built:WORLDS.filter(w=>w.built).map(w=>w.key)}),
   setSparkleLevel:(n)=>{ LEVEL=Math.max(1,Math.min(levelCap(),n|0)); LXP=0; MAGIC_BIG=LEVEL>=8; WORLDS.forEach(w=>{ if(w.home||w.req<=LEVEL)UNLOCKED_WORLDS.add(w.key); }); persistLevel(); persistWorlds(); updateLevelBadge(); } });
 </script>
