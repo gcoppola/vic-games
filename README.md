@@ -25,7 +25,8 @@ Live: https://storage.googleapis.com/vic-games/index.html (public bucket `gs://v
 bucket, then confirms the live `games.json` reports the new build. Auth is keyless (Workload Identity Federation):
 only `main` of this repo can deploy, and only to `gs://vic-games`.
 
-One-time Google-side setup (project owner, in Cloud Shell): `./infra/setup-github-deploy.sh`
+One-time Google-side setup (project owner): `./infra/setup-github-deploy.sh` in Cloud Shell, or
+`.\infra\setup-github-deploy.ps1` in Windows PowerShell with gcloud installed.
 
 **By hand** (e.g. Cloud Shell): `./deploy.sh`
 
