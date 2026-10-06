@@ -12,6 +12,8 @@ gcloud services enable iam.googleapis.com iamcredentials.googleapis.com sts.goog
 gcloud iam service-accounts describe "$SA_EMAIL" --project "$PROJECT" >/dev/null 2>&1 ||
   gcloud iam service-accounts create "$SA" --project "$PROJECT" --display-name "vic-games deploy (GitHub Actions)"
 gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member "serviceAccount:$SA_EMAIL" --role roles/storage.objectAdmin >/dev/null
+# rsync also reads the bucket's own settings (storage.buckets.get), which objectAdmin alone does not allow
+gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member "serviceAccount:$SA_EMAIL" --role roles/storage.legacyBucketReader >/dev/null
 
 # trust GitHub's OIDC tokens — but only from this repo, owned by this account, on main
 gcloud iam workload-identity-pools describe "$POOL" --project "$PROJECT" --location global >/dev/null 2>&1 ||
