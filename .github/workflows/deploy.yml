@@ -1,0 +1,50 @@
+name: Deploy to gs://vic-games
+
+# Every push to main that touches the games publishes them. Auth is keyless Workload Identity Federation:
+# GitHub mints a short-lived OIDC token, Google trades it for a token of vic-games-deployer, which can only write
+# objects in gs://vic-games. One-time Google-side setup: infra/setup-github-deploy.sh (run in Cloud Shell).
+on:
+  push:
+    branches: [main]
+    paths: ['public/**', 'deploy.sh', '.github/workflows/deploy.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-vic-games
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the build numbers agree
+        run: |
+          b=$(jq -r .build public/games.json)
+          for f in public/sw.js public/fairyland.html; do
+            grep -q "sparklehoof-b${b}'" "$f" || { echo "::error file=$f::games.json says build $b but $f has a different sparklehoof-b cache name"; exit 1; }
+          done
+          echo "build $b"
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/292617444643/locations/global/workloadIdentityPools/github-actions/providers/vic-games
+          service_account: vic-games-deployer@lmemvp1.iam.gserviceaccount.com
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Sync public/ to the bucket
+        run: ./deploy.sh
+
+      - name: Verify the live build
+        run: |
+          want=$(jq -r .build public/games.json)
+          got=$(curl -fsS "https://storage.googleapis.com/vic-games/games.json?nocache=$GITHUB_RUN_ID" | jq -r .build)
+          echo "live build: $got (expected $want)"
+          test "$got" = "$want"
+          echo "### Deployed build $got → https://storage.googleapis.com/vic-games/index.html" >> "$GITHUB_STEP_SUMMARY"
