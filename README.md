@@ -20,7 +20,16 @@ Live: https://storage.googleapis.com/vic-games/index.html (public bucket `gs://v
 
 ## Deploy
 
-1. Bump `build` in `public/games.json` and `CACHE` in `public/sw.js` (they move together; both at 24 today).
-2. `./deploy.sh` (needs `gsutil` signed in with write access to the bucket).
+**Automatic:** every push to `main` that touches `public/` is published by the GitHub Action
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). It checks the build numbers agree, syncs `public/` to the
+bucket, then confirms the live `games.json` reports the new build. Auth is keyless (Workload Identity Federation):
+only `main` of this repo can deploy, and only to `gs://vic-games`.
+
+One-time Google-side setup (project owner, in Cloud Shell): `./infra/setup-github-deploy.sh`
+
+**By hand** (e.g. Cloud Shell): `./deploy.sh`
+
+Before shipping a new build, bump `build` in `public/games.json` and the `sparklehoof-bNN` cache name in `public/sw.js`
+and `public/fairyland.html` together — the Action refuses to deploy if they disagree.
 
 Initial commit is a byte-for-byte snapshot of the live bucket at build 24 (2026-06-19), checksum-verified.
