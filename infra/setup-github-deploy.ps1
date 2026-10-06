@@ -21,6 +21,8 @@ Must 'enabling the IAM / STS APIs'
 gcloud iam service-accounts describe $SaEmail --project $Project 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Retry 'creating the deployer service account' { gcloud iam service-accounts create $Sa --project $Project --display-name 'vic-games deploy (GitHub Actions)' } }
 Retry 'granting the deployer access to the bucket' { gcloud storage buckets add-iam-policy-binding "gs://$Bucket" --member "serviceAccount:$SaEmail" --role roles/storage.objectAdmin | Out-Null }
+# rsync also reads the bucket's own settings (storage.buckets.get), which objectAdmin alone does not allow
+Retry 'granting the deployer read access to bucket settings' { gcloud storage buckets add-iam-policy-binding "gs://$Bucket" --member "serviceAccount:$SaEmail" --role roles/storage.legacyBucketReader | Out-Null }
 
 # trust GitHub's OIDC tokens - but only from this repo, owned by this account, on main
 gcloud iam workload-identity-pools describe $Pool --project $Project --location global 2>&1 | Out-Null
