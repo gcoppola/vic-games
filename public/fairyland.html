@@ -215,6 +215,8 @@
     #bMagic,#magicring{right:calc(22px + var(--sar));bottom:calc(24px + var(--sab));}
     .photo{width:56px;height:56px;font-size:26px;} #bPhoto{right:calc(46px + var(--sar));bottom:calc(140px + var(--sab));}
     #pumpkinChip{top:calc(80px + var(--sat));font-size:15px;padding:2px 9px;}
+    .bubicon{font-size:24px;} .bubq{font-size:14px;} .face.ctnum{font-size:24px;min-width:44px;height:46px;} .face.ctletter{font-size:26px;width:48px;height:48px;} .face.ctbig{font-size:34px;width:56px;height:56px;} .face.ctword{font-size:17px;padding:5px 10px;} .bubfaces .face{font-size:32px;}
+    #arc{width:min(360px,56vw);} #lvl{left:calc(50% - min(180px,28vw) - 30px);} /* short + wide: badge beside the arc, not on it */
   }
   @media (max-width:725px){ /* portrait phone: tools become a column on the right, arc tucks under the jars, controls shrink so ✨ never covers ➡️ */
     .jar{width:48px;height:58px;} .jar .ico{font-size:20px;} .jar .cnt{font-size:12px;} #jars{gap:6px;}
@@ -226,6 +228,9 @@
     #bMagic,#magicring{right:calc(16px + var(--sar));bottom:calc(36px + var(--sab));}
     .photo{width:56px;height:56px;font-size:26px;} #bPhoto{right:calc(40px + var(--sar));bottom:calc(152px + var(--sab));}
     #pumpkinChip{top:calc(106px + var(--sat));font-size:15px;padding:2px 9px;}
+  }
+  @media (max-width:345px){ /* tiny phones (iPhone SE 1st gen): the badge would sit on the tool column */
+    #lvl{left:calc(14px + var(--sal));top:calc(104px + var(--sat));} #pumpkinChip{left:calc(70px + var(--sal));}
   }
   @media (max-width:725px) and (max-height:520px){ /* small phone held sideways (e.g. iPhone SE): one compact row, no column clashing with ✨ */
     .jar{width:44px;height:52px;} .jar .ico{font-size:18px;}
@@ -578,8 +583,10 @@ for(let i=0;i<(LOW?1:2);i++){ const bl=balloon((hash(i,9)-0.5)*MAP*1.2,30+hash(i
    ============================================================ */
 const LOOK={ body:0xffffff, mane:'rainbow', horn:0xffe66b, trail:'⭐', hat:'none' };
 try{ const s=JSON.parse(localStorage.getItem('sparklehoof_look')||'null'); if(s)Object.assign(LOOK,s); }catch(e){}
+if(LOOK.trail==='🫧')LOOK.trail='💧'; // 🫧 is Emoji 14 (blank on older iPads)
 let LEVEL=1, LXP=0, MAGIC_BIG=false; // Sparkle Level progression
-try{ const s=JSON.parse(localStorage.getItem('sparklehoof_level')||'null'); if(s){ LEVEL=Math.max(1,(s.l|0)||1); LXP=Math.max(0,Math.min(xpToNext(LEVEL)-1,(s.xp|0))); MAGIC_BIG=LEVEL>=8; } }catch(e){} // clamp stale XP to a valid remainder; magic is a pure function of level
+let LEVEL_EARNED=1;
+try{ const s=JSON.parse(localStorage.getItem('sparklehoof_level')||'null'); if(s){ LEVEL=Math.max(1,(s.l|0)||1); LEVEL_EARNED=Math.max(LEVEL,(s.e|0)||1); LXP=Math.max(0,Math.min(xpToNext(LEVEL)-1,(s.xp|0))); MAGIC_BIG=LEVEL>=8; } }catch(e){} // clamp stale XP to a valid remainder; magic is a pure function of level
 // which worlds are unlocked (persisted); back-fill any world already earned by level so existing players never see an earned world re-locked
 const UNLOCKED_WORLDS=new Set(['meadow']);
 try{ const ws=JSON.parse(localStorage.getItem('sparklehoof_worlds')||'null'); if(Array.isArray(ws))ws.forEach(k=>{ if(WORLD_BY_KEY[k])UNLOCKED_WORLDS.add(k); }); }catch(e){}
@@ -695,7 +702,7 @@ function startFlight(grand,durOverride){ if(FLY.dur>0)return; const boost=!!durO
   if(!DISCOVERED.wingsEarned){ DISCOVERED.wingsEarned=true; if(typeof persistDiscovered==='function')persistDiscovered(); } // wings earned for good -> stars re-launch flight after this
   try{ chime(boost?1:2); }catch(e){}
   if(boost){ if(Math.random()<0.45) fairySay('Wheee! Up we go!'); } // star-boost: quiet, no big popup (it happens a lot)
-  else { try{ fanfare(); }catch(e){} try{ showPop(grand?'🌈':'🪽', grand?'You can FLY!':'Take flight!'); }catch(e){}
+  else { try{ fanfare(); }catch(e){} try{ showPop(grand?'🌈':'🕊️', grand?'You can FLY!':'Take flight!'); }catch(e){}
     fairySay(grand?'Wow! Spread your sparkly wings and soar up high!':'You earned your wings! Let us fly!'); } }
 function applyHornColor(){ if(hornMesh){ hornMesh.material.color.set(LOOK.horn); hornMesh.material.emissive.set(LOOK.horn); hornLight.color.set(LOOK.horn);} }
 
@@ -751,8 +758,9 @@ function recordDiscovery(kind,key,value){ try{
   else { const arr=DISCOVERED[kind]; if(Array.isArray(arr) && key!=null && arr.indexOf(key)<0) arr.push(key); }
   persistDiscovered(); }catch(e){} }
 function recordMastery(skill,firstTry){ const m=MASTERY[skill]; if(!m)return; m.seen=(m.seen||0)+1;
-  if(firstTry){ m.streak=(m.streak||0)+1; if(m.streak>=3 && (m.tier|0)<4){ m.tier=(m.tier|0)+1; m.streak=0; persistMastery(); onTierUp(skill); return; } }
+  if(firstTry){ m.streak=(m.streak||0)+1; if(m.streak>=3 && (m.tier|0)<4){ const before=offerableIds(); m.tier=(m.tier|0)+1; m.streak=0; persistMastery(); if(offerableIds().some(id=>!before.includes(id))) onTierUp(skill); return; } }
   else m.streak=0; persistMastery(); }
+function offerableIds(){ return CHALLENGE_DEFS.filter(d=>skillOn(d.skill)&&effLevel()>=d.min&&(d.tier==null||curTier(d.skill)>=d.tier)&&(d.max==null||curTier(d.skill)<=d.max)).map(d=>d.id); }
 function onTierUp(skill){ try{ showPop('✨','New Quest!'); }catch(e){} fairySay('Wow! You unlocked a brand new sparkle quest!'); }
 
 /* learning: "Twinkle counts your treasures" (counting + cardinality, no-fail) */
@@ -763,8 +771,8 @@ const eduRecent={type:null,n:0,t:0};
 function effLevel(){ return Math.min(2, Math.max(0,eduLevel|0), SETTINGS.ageStop|0); } // Age is a real cap: effective level never exceeds the chosen age band
 function eduCeiling(){ return [3,5,10][Math.min(2,effLevel())]; }
 // per-skill difficulty TIERS ride above effLevel via mastery; a 4th tier (within-20, place value, digraphs, sentences) opens ONLY in the 7+ band
-function numTier(){ const cap=(SETTINGS.ageStop>=3)?4:(SETTINGS.ageStop>=1)?3:2, floor=(SETTINGS.ageStop>=3)?4:0; return Math.min(cap, Math.max(effLevel(), floor, MASTERY.counting.tier|0)); } // 8-9 band floors to tier 4 (hard content right away)
-function litTier(){ const cap=(SETTINGS.ageStop>=3)?4:(SETTINGS.ageStop>=1)?3:2, floor=(SETTINGS.ageStop>=3)?4:0; return Math.min(cap, Math.max(effLevel(), floor, (MASTERY.letters.tier|0), (MASTERY.sightWords.tier|0))); }
+function numTier(){ const cap=(SETTINGS.ageStop>=2)?4:(SETTINGS.ageStop>=1)?3:2, floor=(SETTINGS.ageStop>=3)?4:0; return Math.min(cap, Math.max(effLevel(), floor, MASTERY.counting.tier|0)); } // 8-9 band floors to tier 4 (hard content right away)
+function litTier(){ const cap=(SETTINGS.ageStop>=2)?4:(SETTINGS.ageStop>=1)?3:2, floor=(SETTINGS.ageStop>=3)?4:0; return Math.min(cap, Math.max(effLevel(), floor, (MASTERY.letters.tier|0))); } // phonics tiers rise on PHONICS wins only (not sight-word streaks)
 function numCeiling(){ return [3,5,10,20,99][Math.min(4,numTier())]; }
 function curTier(skill){ return skill==='counting'?numTier():litTier(); }
 function narratePickup(type){ // counts the items in the child's current little run: "one... two... three stars!"
@@ -815,7 +823,7 @@ function projectBubbles(){ if(!__bubbles.length)return;
     lx=Math.max(safeHalf+8, Math.min(W-safeHalf-8, lx)); // keep the whole row on-screen no matter the measured width
     let loY=bh+SAFE_T+78;                          // sit below the notch AND the top HUD (jars / tools)
     let hiY=H-SAFE_B-190;                          // keep the BOTTOM edge clear of the move/magic buttons + home indicator
-    if(loY>hiY) loY=hiY;                           // ultra-short (landscape phone): favour the tappable lower half
+    if(loY>hiY){ loY=hiY=Math.max(hiY,bh+SAFE_T+6); } // ultra-short (landscape phone): sit as low as possible, but never push the question off the top
     ly=Math.max(loY, Math.min(hiY, ly));
     // Position via transform from a fixed left:0/top:0 origin so the container's right edge can never squeeze
     // the bubble's auto width (which would wrap the tile row into a tall off-screen column). -50%/-100% re-centre it.
@@ -829,19 +837,19 @@ function addLabelSprite(mesh,text,style){ const tex=makeLabelTexture(text,{style
   const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false})); sp.scale.setScalar(style==='glyph'?1.2:1.5); sp.position.y=0.25; mesh.add(sp); mesh.userData.label=sp; return sp; }
 
 /* ---- Heart-Words: whole sight words ride on some hearts -> a reopenable Word Locket ---- */
-const WORD_BANK=['the','you','see','my','go','we','me','like','love','is','and','it']; // multi-letter sight words only (avoid single-letter TTS mispronunciation + Letter-Star collision)
+const WORD_BANK=['the','you','see','my','go','we','me','like','love','is','and','it','can','look','play','said','come','was','they','have','what','with']; // multi-letter sight words only (avoid single-letter TTS mispronunciation + Letter-Star collision)
 const metWords=new Set(); try{ const a=JSON.parse(localStorage.getItem('sparklehoof_words')||'[]'); if(Array.isArray(a))a.forEach(w=>metWords.add(w)); }catch(e){}
 const heartWordRecent={t:0};
 function wordFraction(){ return skillOn('sightWords')?[0.30,0.42,0.55][Math.min(2,effLevel())]:0; }
-function wordCeiling(){ return [4,7,12][Math.min(2,effLevel())]; }
+function wordCeiling(){ return [4,10,WORD_BANK.length][Math.min(2,effLevel())]; } // grade 1 works through ~100 sight words; 12 was a first month of K
 function maybeAssignWord(){ if(!skillOn('sightWords')||!densityAllows())return null; const now=performance.now(); if(now-heartWordRecent.t<5000)return null; if(Math.random()>=wordFraction())return null; heartWordRecent.t=now;
   const pool=WORD_BANK.slice(0,wordCeiling()); const fresh=pool.filter(w=>!metWords.has(w)); const src=(fresh.length&&Math.random()<0.7)?fresh:pool; return src[Math.floor(Math.random()*src.length)]; }
 function persistWords(){ try{ localStorage.setItem('sparklehoof_words',JSON.stringify([...metWords])); }catch(e){} }
 function saveWord(word){ const isNew=!metWords.has(word); metWords.add(word); persistWords(); recordDiscovery('words',word); if(isNew) spark(P.x,3,P.z,0xff7ac0,0.7,2); return isNew; }
-function narrateWord(word,isNew){ const W=word.toUpperCase(); const lines=isNew?['You found '+W+'!','A new word, '+W+'!','Look, '+W+'!']:['That word is '+W+'!','You know '+W+'!']; learnNarrate(lines[Math.floor(Math.random()*lines.length)]); }
+function narrateWord(word,isNew){ const W='"'+word+'"'; const lines=isNew?['You found '+W+'!','A new word, '+W+'!','Look, '+W+'!']:['That word is '+W+'!','You know '+W+'!']; learnNarrate(lines[Math.floor(Math.random()*lines.length)]); }
 /* ---- Letter-Stars + Sound Garden: some stars/gems carry a letter; Twinkle says the SOUND, slowly ---- */
-const LETTER_DEFS=[ {L:'s',sound:'sss',word:'sun'},{L:'m',sound:'mmm',word:'moon'},{L:'a',sound:'ah',word:'apple'},{L:'t',sound:'tuh',word:'tree'},{L:'p',sound:'puh',word:'pony'},
-  {L:'b',sound:'buh',word:'bunny'},{L:'f',sound:'fff',word:'flower'},{L:'o',sound:'ah',word:'otter'},{L:'i',sound:'ih',word:'igloo'},{L:'e',sound:'eh',word:'egg'},{L:'u',sound:'uh',word:'umbrella'} ];
+const LETTER_DEFS=[ {L:'s',sound:'sss',word:'sun'},{L:'m',sound:'mmm',word:'moon'},{L:'a',sound:'ah',word:'apple'},{L:'t',sound:'tuh',word:'turtle'},{L:'p',sound:'puh',word:'pony'},
+  {L:'b',sound:'buh',word:'bunny'},{L:'f',sound:'fff',word:'fish'},{L:'o',sound:'aw',word:'octopus'},{L:'i',sound:'ih',word:'insect'},{L:'e',sound:'eh',word:'egg'},{L:'u',sound:'uh',word:'umbrella'} ];
 const lettersMet=new Set(); try{ const a=JSON.parse(localStorage.getItem('sparklehoof_letters')||'[]'); if(Array.isArray(a))a.forEach(L=>lettersMet.add(L)); }catch(e){}
 const letterRecent={t:0};
 function letterPool(){ return LETTER_DEFS.slice(0,[5,8,11][Math.min(2,effLevel())]); }
@@ -850,7 +858,7 @@ function letterDef(L){ for(const d of LETTER_DEFS) if(d.L===L) return d; return 
 function maybeAssignLetter(type){ if(!skillOn('letters')||!densityAllows())return null; const now=performance.now(); if(now-letterRecent.t<6000)return null; if(Math.random()>=letterFraction())return null; letterRecent.t=now;
   const pool=letterPool(); const fresh=pool.filter(d=>!lettersMet.has(d.L)); const src=(fresh.length&&Math.random()<0.7)?fresh:pool; return src[Math.floor(Math.random()*src.length)].L; }
 function narrateLetter(L){ const d=letterDef(L); if(!d)return; const isNew=!lettersMet.has(L); lettersMet.add(L); try{localStorage.setItem('sparklehoof_letters',JSON.stringify([...lettersMet]));}catch(e){} recordDiscovery('letters',L);
-  learnNarrate(d.sound+'... '+L.toUpperCase()+'. Like in '+d.word+'.',0.82); if(isNew) spark(P.x,3,P.z,0xffe66b,0.7,2); }
+  learnNarrate(d.sound+'... the letter '+L.toUpperCase()+'... '+d.sound+', like '+d.word+'.',0.82); if(isNew) spark(P.x,3,P.z,0xffe66b,0.7,2); }
 const gardenFlowers=[]; const GARDEN={x:-32,z:34};
 function buildSoundGarden(){ if(gardenFlowers.length||!skillOn('letters'))return; const vowels=['a','e','i','o','u'], cx=GARDEN.x, cz=GARDEN.z;
   vowels.forEach((L,i)=>{ const a=i/vowels.length*6.28, fx=cx+Math.cos(a)*5, fz=cz+Math.sin(a)*5, gh=groundH(fx,fz);
@@ -863,9 +871,10 @@ function updateSoundGarden(dt){ if(zone!=='meadow'||!skillOn('letters'))return; 
 /* ---- Friend Gather-Quests: cuddles, bring-exactly-N (counting), and sharing (subtraction) ---- */
 const QUEST={ active:null, t:0, next:30+Math.random()*22 };
 function questMax(){ return [3,5,6][Math.min(2,effLevel())]; }
-function questPal(){ const pals=[]; for(const f of friends) pals.push(f); for(const b of babies) pals.push(b); return pals.length?pals[Math.floor(Math.random()*pals.length)]:null; }
+function questPal(){ const pals=[]; for(const f of friends.concat(babies)){ if(f.userData.follow||f.userData.hiding)continue; if(zone==='meadow'&&Math.hypot(f.position.x-P.x,f.position.z-P.z)<10)continue; pals.push(f); } // only a friend she has to go and visit
+  return pals.length?pals[Math.floor(Math.random()*pals.length)]:null; }
 function plural(n,w){ return n===1?w:w+'s'; } // "one heart", "two hearts"
-function startQuest(){ if(QUEST.active||zone!=='meadow'||anyOverlayOpen())return; if(!(skillOn('counting')||skillOn('feelings')))return;
+function startQuest(){ if(QUEST.active||zone!=='meadow'||anyOverlayOpen()||mood.bubble)return; if(!(skillOn('counting')||skillOn('feelings')))return;
   if(friends.length && skillOn('counting') && Math.random()<0.22){ startSeek(); return; } // HIDE & SEEK with a unicorn friend
   const pal=questPal(); if(!pal)return; const r=Math.random(); let q=null;
   if(r<0.34 && skillOn('feelings')){ q={kind:'cuddle',pal:pal,icon:'💗'}; }
@@ -877,7 +886,9 @@ function startQuest(){ if(QUEST.active||zone!=='meadow'||anyOverlayOpen())return
   else if(q.kind==='share'){ q.bubble=makeThoughtBubble(anchor,{icon:q.icon,dots:q.give}); learnNarrate('Will you share '+EDU_NUM[q.give]+' '+plural(q.give,EDU_NAME[q.type])+' with me?'); }
   else { q.bubble=makeThoughtBubble(anchor,{icon:'💗'}); learnNarrate('I would love a cuddle!');
     for(let i=0;i<10;i++){ const aa=i/10*6.28; spark(q.pal.position.x+Math.cos(aa)*1.5,q.pal.position.y+2.2,q.pal.position.z+Math.sin(aa)*1.5,0xff9ad4,0.5,1.4); } } // visible cue (works without sound)
+  if(voiceOff()) addBubbleText(q.bubble, q.kind==='bring'?'Bring me '+q.need+' '+q.type:q.kind==='share'?'Share '+q.give+' '+q.type+'?':'A cuddle, please! 💗');
   q.born=performance.now(); QUEST.active=q; }
+function addBubbleText(bub,txt){ if(!bub||!txt)return; const t=document.createElement('div'); t.className='bubq'; t.textContent=txt; bub.root.insertBefore(t,bub.root.firstChild); bub._bh=null; } // words for a silent iPad
 function fillQuestDot(type){ const q=QUEST.active; if(!q||q.kind!=='bring'||q.type!==type||q.got>=q.need)return null; // DATA only; returns the line for the caller to voice (or skip on a prize)
   q.got++; if(q.bubble&&q.bubble.dotEls[q.got-1]) q.bubble.dotEls[q.got-1].classList.add('on'); recordDiscovery('countedTo',null,q.got); q.born=performance.now(); // refresh expiry while actively collecting
   if(q.got<q.need) return numWord(q.got)+'!'; q.ready=true; return 'You have '+numWord(q.need)+'! Take them to your friend!'; }
@@ -889,7 +900,7 @@ function startSeek(){ const pal=friends[Math.floor(Math.random()*friends.length)
   for(let i=0;i<16;i++) spark(pal.position.x+(Math.random()-0.5)*2,pal.position.y+1+Math.random()*2,pal.position.z+(Math.random()-0.5)*2,[0xff9ad4,0xffe66b,0xb38aff][i%3],0.7,2.5); // poof!
   let hx=0,hz=0; for(let t=0;t<30;t++){ const a=Math.random()*6.28,d=34+Math.random()*34; hx=P.x+Math.cos(a)*d; hz=P.z+Math.sin(a)*d; if(Math.abs(hx)<MAP-14&&Math.abs(hz)<MAP-14&&Math.hypot(hx-SCHOOL.x,hz-SCHOOL.z)>18)break; }
   hx=Math.max(-(MAP-14),Math.min(MAP-14,hx)); hz=Math.max(-(MAP-14),Math.min(MAP-14,hz)); pal.position.set(hx,groundH(hx,hz),hz); pal.userData.tx=hx; pal.userData.tz=hz; pal.userData.speed=0;
-  learnNarrate(name+' wants to play hide and seek! Let us count to ten... '+countAloud(10)+' Ready or not, here we come!');
+  learnNarrate(name+' wants to play hide and seek! Let us count to ten... '+countAloud(10)+' Ready or not, here we come!'); if(voiceOff()) addBubbleText(q.bubble,'Hide and seek! Find '+name+'!');
   q.born=performance.now(); QUEST.active=q; }
 function seekTick(q,dt){ q.t+=dt;
   if(q.phase==='count'){ if(q.t>(voiceOff()?3:8.5)){ q.phase='seek'; q.t=0; q.born=performance.now(); if(q.bubble&&q.bubble.iconEl)q.bubble.iconEl.textContent='🔍 🦄'; learnNarrate('Where is '+q.pal.userData.def.name+'? Look for the sparkles!'); } return; }
@@ -905,7 +916,7 @@ function tryDeliverQuest(){ const q=QUEST.active; if(!q||q.kind==='seek')return;
   else if(q.kind==='bring'){ if(q.ready) completeQuest('Yay! You brought me '+EDU_NUM[q.need]+' '+EDU_NAME[q.type]+'s! Thank you!'); }
   else if(q.kind==='share'){ const had=COUNT[q.type], give=Math.min(q.give,had), now=Math.max(0,had-give);
     COUNT[q.type]=now; persist(); updateHUD(); recordDiscovery('countedTo',null,give);
-    learnNarrate('You had '+numWord(had)+'. Give '+numWord(give)+'... now you have '+numWord(now)+'!');
+    const nm=EDU_NAME[q.type]; learnNarrate(had<=eduCeiling() ? 'You had '+numWord(had)+' '+plural(had,nm)+'. You gave '+numWord(give)+'... now you have '+numWord(now)+'!' : 'You shared '+numWord(give)+' '+plural(give,nm)+'! Thank you!');
     celebrate(q.pal.position.x,q.pal.position.y+1,q.pal.position.z,2); endQuest(); } }
 function questTick(dt){ if(zone!=='meadow'||!(skillOn('counting')||skillOn('feelings')))return;
   if(QUEST.active){ if(QUEST.active.kind==='seek') seekTick(QUEST.active,dt); else tryDeliverQuest(); if(QUEST.active && performance.now()-QUEST.active.born>90000) endQuest(); return; } // gentle expiry so an ignored quest never starves future ones
@@ -913,15 +924,17 @@ function questTick(dt){ if(zone!=='meadow'||!(skillOn('counting')||skillOn('feel
 
 /* ---- Feelings check-in (SEL): a soft, skippable mood bubble over the unicorn ---- */
 function anyOverlayOpen(){ return ['photoView','wardrobe','locket','parent','journey','worldMap'].some(id=>{ const e=document.getElementById(id); return e && e.style.display==='flex'; }); }
-const FEEL_FACES=[ {e:'😊',name:'happy',line:'Happy feels warm and bright!'},{e:'😌',name:'calm',line:'Calm and cozy.'},{e:'🤩',name:'excited',line:'So much fun!'},
-  {e:'😴',name:'sleepy',line:'A little sleepy, and that is okay.'},{e:'🥰',name:'loved',line:'Full of love!'},{e:'🤔',name:'curious',line:'Curious about everything!'} ];
+const FEEL_FACES=[ {e:'😊',name:'happy',line:'Happy feels warm and bright!'},{e:'😢',name:'sad',line:'It is okay to feel sad. Sparklehoof is here with you.'},
+  {e:'😴',name:'sleepy',line:'A little sleepy, and that is okay.'},{e:'😠',name:'grumpy',line:'Grumpy is okay too. Let us take a big, slow breath.'},
+  {e:'🤩',name:'excited',line:'So much fun!'},{e:'😌',name:'calm',line:'Calm and cozy.'},{e:'😟',name:'worried',line:'Worried is okay. You are safe here.'},
+  {e:'🥰',name:'loved',line:'Full of love!'},{e:'🤔',name:'curious',line:'Curious about everything!'} ];
 const mood={ t:0, next:34+Math.random()*22, bubble:null, fadeT:0 };
 function showMoodCheckIn(){ if(mood.bubble||zone!=='meadow'||!skillOn('feelings')||anyOverlayOpen()||QUEST.active)return; // never stack on top of a friend's quest bubble
-  const n=effLevel()>=1?4:3, pool=FEEL_FACES.slice(0, effLevel()>=2?6:4), idx=pool.map((_,i)=>i);
+  const n=effLevel()>=1?4:3, pool=FEEL_FACES.slice(0, [4,6,9][Math.min(2,effLevel())]), idx=pool.map((_,i)=>i);
   for(let i=idx.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=idx[i]; idx[i]=idx[j]; idx[j]=t; }
   const chosen=idx.slice(0,Math.min(n,pool.length)).map(i=>pool[i]);
   mood.bubble=makeThoughtBubble(v=>v.set(uni.position.x,uni.position.y+5.6,uni.position.z),
-    { faces:chosen.map(f=>f.e), onPick:(emoji,bub)=>{ const f=FEEL_FACES.find(x=>x.e===emoji); if(f){ learnNarrate('You feel '+f.name+'! '+f.line); recordDiscovery('feelings',f.name); spark(P.x,3.2,P.z,0xff9ad4,0.7,2); note(700,0.12,'triangle',0.16); } bub.remove(); mood.bubble=null; } });
+    { faces:chosen.map(f=>f.e), onPick:(emoji,bub)=>{ const f=FEEL_FACES.find(x=>x.e===emoji); if(f){ learnNarrate('You feel '+f.name+'. '+f.line); recordDiscovery('feelings',f.name); spark(P.x,3.2,P.z,0xff9ad4,0.7,2); note(700,0.12,'triangle',0.16); } bub.remove(); mood.bubble=null; } });
   mood.fadeT=13; learnNarrate('How do you feel?'); idleT=0; }
 function updateMood(dt){ if(!skillOn('feelings'))return;
   if(mood.bubble){ mood.fadeT-=dt; if(mood.fadeT<=0 || zone!=='meadow' || anyOverlayOpen()){ mood.bubble.remove(); mood.bubble=null; } return; }
@@ -937,9 +950,12 @@ function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
 function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)),t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
 function chooseWord(){ const pool=WORD_BANK.slice(0,wordCeiling()); const fresh=pool.filter(w=>!metWords.has(w)); const src=(fresh.length&&Math.random()<0.7)?fresh:pool; return src[Math.floor(Math.random()*src.length)]; }
 const TYPES_E=['⭐','💎','💖','🌸'];
-const SPELL_WORDS=[{w:'sun',e:'🌞',o:'sss'},{w:'moon',e:'🌙',o:'mmm'},{w:'pig',e:'🐷',o:'puh'},{w:'bee',e:'🐝',o:'buh'},{w:'tree',e:'🌳',o:'tuh'},{w:'apple',e:'🍎',o:'ah'},{w:'pony',e:'🐴',o:'puh'},{w:'flower',e:'🌸',o:'fff'},{w:'egg',e:'🥚',o:'eh'},{w:'igloo',e:'🧊',o:'ih'},{w:'otter',e:'🦦',o:'ah'},{w:'umbrella',e:'☂️',o:'uh'}];
+const SPELL_WORDS=[{w:'sun',e:'🌞',o:'sss'},{w:'moon',e:'🌙',o:'mmm'},{w:'pig',e:'🐷',o:'puh'},{w:'bee',e:'🐝',o:'buh'},{w:'turtle',e:'🐢',o:'tuh'},{w:'apple',e:'🍎',o:'ah'},{w:'pony',e:'🐴',o:'puh'},{w:'fish',e:'🐟',o:'fff'},{w:'egg',e:'🥚',o:'eh'},{w:'insect',e:'🐞',o:'ih'},{w:'octopus',e:'🐙',o:'aw'},{w:'umbrella',e:'☂️',o:'uh'}];
 const PAL_E={bunny:'🐰',foal:'🐴',butterfly:'🦋'};
-const CH_WIN=['You figured it out!','You counted so carefully!','You sounded it out!','Great thinking!','You did it — lovely work!','Hooray, you found it!'];
+const CH_WIN=['You figured it out!','Great thinking!','You did it — lovely work!','Hooray, you found it!'];
+const CH_WIN_BY={counting:['You counted so carefully!','Super counting!','Math magic!'],letters:['You listened so carefully!','Great listening!','You heard the sounds!'],
+  sightWords:['You read it!','Super reading!','You know that word!'],patterns:['You spotted the pattern!','Pattern power!','Great looking!']};
+const CH_TRIED=['Now you know it!','You got it — great trying!','Now we both know!'];
 const CH={round:null,bubble:null,busy:false,resolved:false,lastId:null,fadeT:0};
 const chInvite={t:0,next:55+Math.random()*40};
 function chAnchor(){ return v=>v.set(uni.position.x,uni.position.y+5.6,uni.position.z); } // Sparkle Quest bubble floats over the child (so it stays with them at the school)
@@ -955,7 +971,7 @@ function genHowMany(){ const ceil=eduCeiling(),type=pick(TYPES_E),q=1+Math.floor
 function genAddOneMore(){ if(effLevel()<1)return null; const cap=effLevel()>=2?10:5,type=pick(TYPES_E),b=(effLevel()>=2&&Math.random()<0.5)?2:1,a=1+Math.floor(Math.random()*(cap-b)),sum=a+b,nT=effLevel()>=2?4:3;
   const opts=new Set([sum]); for(let g=0;opts.size<nT&&g<40;g++){ const d=sum+(Math.floor(Math.random()*7)-3); if(d>=2&&d<=cap)opts.add(d); }
   return { id:'addOneMore', icon:type.repeat(a)+' + '+type.repeat(b), faces:shuffle([...opts]).map(String), answer:String(sum), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('You have '+numWord(a)+' '+EDU_NAME[type]+'s. '+(b===1?'One more':numWord(b)+' more')+'... how many now?'),
+    prompt:()=>learnNarrate('You have '+numWord(a)+' '+plural(a,EDU_NAME[type])+'. '+(b===1?'One more':numWord(b)+' more')+'... how many now?'),
     reframe:()=>learnNarrate('Let us add them all up... '+countAloud(sum)+' '+numWord(a)+' and '+numWord(b)+' makes '+numWord(sum)+'!'),
     award:()=>recordDiscovery('countedTo',null,sum) }; }
 function genTakeAway(){ const ceil=eduCeiling(),type=pick(TYPES_E),start=2+Math.floor(Math.random()*(ceil-1)),take=1+Math.floor(Math.random()*(start-1)),left=start-take,nT=effLevel()>=2?4:3;
@@ -967,14 +983,13 @@ function genTakeAway(){ const ceil=eduCeiling(),type=pick(TYPES_E),start=2+Math.
     reframe:()=>{ learnNarrate('We give some away... now count what is left... '+countAloud(left)+' '+numWord(start)+' take away '+numWord(take)+' is '+numWord(left)+'!'); const v=anchorFn(new THREE.Vector3()); spark(v.x,v.y,v.z,0xff9ad4,0.7,2); },
     award:()=>recordDiscovery('countedTo',null,left) }; }
 function genFirstSound(){ const pool=letterPool().map(d=>d.L),cands=SPELL_WORDS.filter(s=>pool.includes(s.w[0])); if(!cands.length)return null;
-  const SAME_CUE={a:'o',o:'a'}; // apple + otter share the spoken 'ah' cue → never offer both, or two tiles are "right"
-  const word=pick(cands),correct=word.w[0],others=pool.filter(L=>L!==correct&&L!==SAME_CUE[correct]),n=[2,2,3][Math.min(2,effLevel())],W=word.w.toUpperCase();
+  const word=pick(cands),correct=word.w[0],others=pool.filter(L=>L!==correct),n=[2,2,3][Math.min(2,effLevel())],W='"'+word.w+'"'; // a='ah', o='aw' now differ
   return { id:'firstSound', icon:word.e, faces:shuffle([correct].concat(shuffle(others).slice(0,n-1))), answer:correct, faceClass:'ctletter', anchorFn:chAnchor(),
     prompt:()=>learnNarrate('Which letter does '+W+' start with? Listen... '+word.o+'... '+W+'!',0.82),
     reframe:()=>{ learnNarrate('Listen again... '+word.o+'... '+W+'. That is the letter '+correct.toUpperCase()+'!',0.82); spark(P.x,3,P.z,0xffe66b,0.7,2); },
     award:()=>recordDiscovery('letters',correct) }; }
 function genSightWord(){ const pool=WORD_BANK.slice(0,wordCeiling()); if(pool.length<2)return null; const target=chooseWord(); let others=pool.filter(w=>w!==target);
-  if(effLevel()>=2) others=others.slice().sort((x,y)=>Math.abs(x.length-target.length)-Math.abs(y.length-target.length)); const n=[2,2,3][Math.min(2,effLevel())],W=target.toUpperCase();
+  if(effLevel()>=2) others=shuffle(others).sort((x,y)=>Math.abs(x.length-target.length)-Math.abs(y.length-target.length)); const n=[2,2,3][Math.min(2,effLevel())],W='"'+target+'"';
   return { id:'sightWordFind', icon:null, faces:shuffle([target].concat(others.slice(0,n-1))), answer:target, faceClass:'ctword', anchorFn:chAnchor(),
     prompt:()=>learnNarrate('Can you find the word '+W+'? '+W+'!'),
     reframe:()=>learnNarrate('Let us look together... '+W+' is right here!'),
@@ -982,119 +997,125 @@ function genSightWord(){ const pool=WORD_BANK.slice(0,wordCeiling()); if(pool.le
 /* ---- harder / deeper Sparkle Quests (unlock by mastery TIER; tier 3 only in the 7+ band) ---- */
 const DICE=['','⚀','⚁','⚂','⚃','⚄','⚅']; // canonical subitizing patterns 1-6
 const CVC_WORDS=[ {w:'cat',e:'🐱',p:['kuh','ah','tuh'],rime:'-at'},{w:'hat',e:'👒',p:['huh','ah','tuh'],rime:'-at'},{w:'bat',e:'🦇',p:['buh','ah','tuh'],rime:'-at'},
-  {w:'dog',e:'🐶',p:['duh','ah','guh'],rime:'-og'},{w:'log',e:'🪵',p:['luh','ah','guh'],rime:'-og'},
+  {w:'dog',e:'🐶',p:['duh','aw','guh'],rime:'-og'},{w:'frog',e:'🐸',p:['fff','rrr','aw','guh'],rime:'-og'},
   {w:'pig',e:'🐷',p:['puh','ih','guh'],rime:'-ig'},
   {w:'sun',e:'🌞',p:['sss','uh','nnn'],rime:'-un'},{w:'run',e:'🏃',p:['rrr','uh','nnn'],rime:'-un'},
   {w:'hen',e:'🐔',p:['huh','eh','nnn'],rime:'-en'},{w:'pen',e:'🖊️',p:['puh','eh','nnn'],rime:'-en'},{w:'ten',e:'🔟',p:['tuh','eh','nnn'],rime:'-en'},
   {w:'bed',e:'🛏️',p:['buh','eh','duh'],rime:'-ed'},{w:'leg',e:'🦵',p:['lll','eh','guh'],rime:'-eg'},
-  {w:'cap',e:'🧢',p:['kuh','ah','puh'],rime:'-ap'},{w:'map',e:'🗺️',p:['mmm','ah','puh'],rime:'-ap'},{w:'bug',e:'🐛',p:['buh','uh','guh'],rime:'-ug'},{w:'hug',e:'🤗',p:['huh','uh','guh'],rime:'-ug'},
-  {w:'pan',e:'🍳',p:['puh','ah','nnn'],rime:'-an'},{w:'van',e:'🚐',p:['vvv','ah','nnn'],rime:'-an'},{w:'can',e:'🥫',p:['kuh','ah','nnn'],rime:'-an'} ];
-const BLEND_DEFS=[ {g:'sh',s:'shh',w:'sheep',e:'🐑'},{g:'ch',s:'ch',w:'chick',e:'🐤'},{g:'th',s:'th',w:'thumb',e:'👍'},{g:'st',s:'st',w:'star',e:'⭐'},{g:'fl',s:'fl',w:'flower',e:'🌸'},{g:'tr',s:'tr',w:'tree',e:'🌳'} ];
+  {w:'clap',e:'👏',p:['kuh','lll','ah','puh'],rime:'-ap'},{w:'map',e:'🗺️',p:['mmm','ah','puh'],rime:'-ap'},{w:'bug',e:'🐛',p:['buh','uh','guh'],rime:'-ug'},{w:'hug',e:'🤗',p:['huh','uh','guh'],rime:'-ug'},
+  {w:'pan',e:'🍳',p:['puh','ah','nnn'],rime:'-an'},{w:'van',e:'🚐',p:['vuh','ah','nnn'],rime:'-an'},{w:'can',e:'🥫',p:['kuh','ah','nnn'],rime:'-an'} ];
+const BLEND_DEFS=[ {g:'sh',s:'shh',w:'sheep',e:'🐑'},{g:'ch',s:'chuh',w:'chick',e:'🐤'},{g:'th',s:'thuh',w:'thumb',e:'👍'},{g:'st',s:'stuh',w:'star',e:'⭐'},{g:'fl',s:'fluh',w:'flower',e:'🌸'},{g:'tr',s:'truh',w:'tree',e:'🌳'} ];
 // AGE-8 (tier 4): four-sound CCVC/CVCC words for blending + consonant-blend recognition (p = spoken phoneme cues, blend = the onset blend)
-const BLEND_WORDS=[ {w:'frog',e:'🐸',p:['fff','rrr','ah','guh'],blend:'fr'},{w:'flag',e:'🚩',p:['fff','lll','ah','guh'],blend:'fl'},{w:'drum',e:'🥁',p:['duh','rrr','uh','mmm'],blend:'dr'},{w:'crab',e:'🦀',p:['kuh','rrr','ah','buh'],blend:'cr'},
-  {w:'train',e:'🚂',p:['tuh','rrr','ay','nnn'],blend:'tr'},{w:'snail',e:'🐌',p:['sss','nnn','ay','lll'],blend:'sn'},{w:'stop',e:'🛑',p:['sss','tuh','ah','puh'],blend:'st'},{w:'spoon',e:'🥄',p:['sss','puh','oo','nnn'],blend:'sp'},
-  {w:'plug',e:'🔌',p:['puh','lll','uh','guh'],blend:'pl'},{w:'clock',e:'🕐',p:['kuh','lll','ah','kuh'],blend:'cl'},{w:'sled',e:'🛷',p:['sss','lll','eh','duh'],blend:'sl'},{w:'brush',e:'🪥',p:['buh','rrr','uh','shh'],blend:'br'} ];
+const BLEND_WORDS=[ {w:'frog',e:'🐸',p:['fff','rrr','aw','guh'],blend:'fr'},{w:'flag',e:'🚩',p:['fff','lll','ah','guh'],blend:'fl'},{w:'drum',e:'🥁',p:['duh','rrr','uh','mmm'],blend:'dr'},{w:'crab',e:'🦀',p:['kuh','rrr','ah','buh'],blend:'cr'},
+  {w:'train',e:'🚂',p:['tuh','rrr','A','nnn'],blend:'tr'},{w:'snail',e:'🐌',p:['sss','nnn','A','lll'],blend:'sn'},{w:'stop',e:'🛑',p:['sss','tuh','aw','puh'],blend:'st'},{w:'spoon',e:'🥄',p:['sss','puh','ooh','nnn'],blend:'sp'},
+  {w:'plug',e:'🔌',p:['puh','lll','uh','guh'],blend:'pl'},{w:'clock',e:'🕐',p:['kuh','lll','aw','kuh'],blend:'cl'},{w:'sled',e:'🛷',p:['sss','lll','eh','duh'],blend:'sl'},{w:'brush',e:'🖌️',p:['buh','rrr','uh','shh'],blend:'br'} ];
 const litN=()=>[2,2,3,3,4][Math.min(4,litTier())];
 function genSubitize(){ const ceil=Math.min(6,numCeiling()),q=1+Math.floor(Math.random()*ceil),nT=numTier()>=2?4:3;
   const pool=[1,2,3,4,5,6].filter(x=>x!==q); const faces=shuffle([q].concat(shuffle(pool).slice(0,nT-1))).map(String);
+  const peek=()=>{ const b=CH.bubble; if(!b||!b.iconEl)return; b.iconEl.style.visibility=''; clearTimeout(b._peekT); b._peekT=setTimeout(()=>{ if(CH.bubble===b&&CH.round&&!CH.round.done&&!CH.resolved) b.iconEl.style.visibility='hidden'; },1600); };
   return { id:'subitize', icon:DICE[q], faces, answer:String(q), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('Quick look! How many dots?'), reframe:()=>learnNarrate('Let us count them... '+countAloud(q)), award:()=>recordDiscovery('countedTo',null,q) }; }
+    prompt:()=>{ peek(); learnNarrate('Quick look! How many dots?'); }, reframe:()=>{ const b=CH.bubble; if(b&&b.iconEl){ clearTimeout(b._peekT); b.iconEl.style.visibility=''; } learnNarrate('Let us count them... '+countAloud(q)); }, award:()=>recordDiscovery('countedTo',null,q) }; }
 function genMakeN(){ const cap=[5,5,10,10][Math.min(3,numTier())],whole=3+Math.floor(Math.random()*(cap-2)),part=1+Math.floor(Math.random()*(whole-1)),miss=whole-part,type=pick(TYPES_E),nT=numTier()>=2?4:3;
   const opts=new Set([miss]); for(let g=0;opts.size<nT&&g<40;g++){ const d=miss+(Math.floor(Math.random()*7)-3); if(d>=0&&d<=cap)opts.add(d); }
   return { id:'makeN', icon:type.repeat(part)+' + ? = '+whole, faces:shuffle([...opts]).map(String), answer:String(miss), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('You have '+numWord(part)+' '+EDU_NAME[type]+'s. How many MORE make '+numWord(whole)+'?'),
+    prompt:()=>learnNarrate('You have '+numWord(part)+' '+plural(part,EDU_NAME[type])+'. How many more make '+numWord(whole)+'?'),
     reframe:()=>learnNarrate('Let us fill it up... '+countAloud(whole)+' so '+numWord(part)+' and '+numWord(miss)+' makes '+numWord(whole)+'!'),
     award:()=>recordDiscovery('countedTo',null,whole) }; }
-function genCompare(){ const ceil=Math.min(9,numCeiling()); let a=1+Math.floor(Math.random()*ceil),b=1+Math.floor(Math.random()*ceil),t=0; while(a===b&&t++<6)b=1+Math.floor(Math.random()*ceil); if(a===b)b=Math.max(1,a-1);
+function genCompare(){ const ceil=Math.min(9,numCeiling()); let a=1+Math.floor(Math.random()*ceil),b=1+Math.floor(Math.random()*ceil),t=0; while(a===b&&t++<6)b=1+Math.floor(Math.random()*ceil); if(a===b)b=(a===1?2:a-1); // never two equal tiles
   const t1=pick(TYPES_E),t2=pick(TYPES_E.filter(x=>x!==t1))||'💎',big=Math.max(a,b);
-  return { id:'compare', icon:t1.repeat(a)+'  ⚖  '+t2.repeat(b), faces:shuffle([String(a),String(b)]), answer:String(big), faceClass:'ctnum', anchorFn:chAnchor(),
+  return { id:'compare', icon:t1.repeat(a)+'  ⚖️  '+t2.repeat(b), faces:shuffle([String(a),String(b)]), answer:String(big), faceClass:'ctnum', anchorFn:chAnchor(),
     prompt:()=>learnNarrate('Which side has MORE? Tap the bigger number!'),
-    reframe:()=>learnNarrate('Let us count... this side has '+numWord(a)+'... that side has '+numWord(b)+'... '+numWord(big)+' is more!'),
+    reframe:()=>learnNarrate('Let us count... '+numWord(a)+' '+plural(a,EDU_NAME[t1])+'... '+numWord(b)+' '+plural(b,EDU_NAME[t2])+'... '+numWord(big)+' is more!'),
     award:()=>recordDiscovery('countedTo',null,big) }; }
-function genTensOnes(){ const tens=1+Math.floor(Math.random()*3),ones=Math.floor(Math.random()*9),val=tens*10+ones;
+function genTensOnes(){ const tens=1+Math.floor(Math.random()*3),ones=Math.floor(Math.random()*10),val=tens*10+ones;
   const opts=new Set([val,ones*10+tens]); for(let g=0;opts.size<4&&g<40;g++){ const d=val+pick([-10,10,-1,1,9,-9,11]); if(d>=10&&d<=99)opts.add(d); }
   return { id:'tensOnes', icon:'🎁'.repeat(tens)+'  '+'✨'.repeat(ones), faces:shuffle([...opts]).map(String), answer:String(val), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate(numWord(tens)+' bags of ten and '+numWord(ones)+' more... how many?'),
+    prompt:()=>learnNarrate((tens===1?'One box':numWord(tens)+' boxes')+' of ten'+(ones?' and '+numWord(ones)+' more':'')+'... how many?'),
     reframe:()=>learnNarrate('Count the tens... '+tensOnesAloud(tens,ones)), award:()=>recordDiscovery('countedTo',null,val) }; }
+function sayTiles(list){ return list.map(o=>o.w).join('... '); } // name every picture tile, so the child judges sounds instead of matching a spoken word
 function genBlendCVC(){ const cands=CVC_WORDS.filter(c=>c.p.length===3),tgt=pick(cands),others=shuffle(CVC_WORDS.filter(c=>c.w!==tgt.w)),n=litN();
   return { id:'blendCVC', icon:null, faces:shuffle([tgt.e].concat(others.slice(0,n-1).map(o=>o.e))), answer:tgt.e, faceClass:'ctbig', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate(tgt.p.join('... ')+'... what word?',0.82), reframe:()=>learnNarrate(tgt.p.join('... ')+'... '+tgt.w.toUpperCase()+'!',0.82), award:()=>recordDiscovery('words',tgt.w) }; }
+    prompt:()=>learnNarrate(tgt.p.join('... ')+'... what word?',0.82), reframe:()=>learnNarrate(tgt.p.join('... ')+'... "'+tgt.w+'"!',0.82), award:()=>recordDiscovery('words',tgt.w) }; }
 function genRhyme(){ const fam={}; CVC_WORDS.forEach(c=>{ (fam[c.rime]=fam[c.rime]||[]).push(c); }); const keys=Object.keys(fam).filter(k=>fam[k].length>=2); if(!keys.length)return null;
   const rk=pick(keys),cue=pick(fam[rk]),mate=pick(fam[rk].filter(c=>c.w!==cue.w)); if(!mate)return null; const others=shuffle(CVC_WORDS.filter(c=>c.rime!==rk)),n=litN();
-  return { id:'rhyme', icon:null, faces:shuffle([mate.e].concat(others.slice(0,n-1).map(o=>o.e))), answer:mate.e, faceClass:'ctbig', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('Which picture RHYMES with '+cue.w.toUpperCase()+'? '+cue.w+'...'),
-    reframe:()=>learnNarrate(cue.w.toUpperCase()+'... '+mate.w.toUpperCase()+'... they rhyme!'), award:()=>recordDiscovery('letters',rk) }; }
+  const picks=shuffle([mate].concat(others.slice(0,n-1)));
+  return { id:'rhyme', icon:null, faces:picks.map(o=>o.e), answer:mate.e, faceClass:'ctbig', anchorFn:chAnchor(),
+    prompt:()=>learnNarrate('Listen... '+sayTiles(picks)+'. Which one rhymes with "'+cue.w+'"?'),
+    reframe:()=>learnNarrate('"'+cue.w+'"... "'+mate.w+'"... they rhyme!'), award:()=>recordDiscovery('letters',rk) }; }
 function genEndSound(){ const tgt=pick(CVC_WORDS.filter(c=>c.p.length===3)),endP=tgt.p[tgt.p.length-1],others=shuffle(CVC_WORDS.filter(c=>c.p[c.p.length-1]!==endP)),n=litN();
-  return { id:'endSound', icon:null, faces:shuffle([tgt.e].concat(others.slice(0,n-1).map(o=>o.e))), answer:tgt.e, faceClass:'ctbig', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('Which word ENDS with the '+endP+' sound? Listen... '+tgt.w+'.',0.82),
-    reframe:()=>learnNarrate(tgt.w.toUpperCase()+' ends with '+endP+'!',0.82), award:()=>recordDiscovery('letters',tgt.w[tgt.w.length-1]) }; }
+  const picks=shuffle([tgt].concat(others.slice(0,n-1)));
+  return { id:'endSound', icon:null, faces:picks.map(o=>o.e), answer:tgt.e, faceClass:'ctbig', anchorFn:chAnchor(),
+    prompt:()=>learnNarrate('Listen... '+sayTiles(picks)+'. Which one ends with '+endP+'?',0.82),
+    reframe:()=>learnNarrate('"'+tgt.w+'" ends with '+endP+'!',0.82), award:()=>recordDiscovery('letters',tgt.w[tgt.w.length-1]) }; }
 function genDigraph(){ const tgt=pick(BLEND_DEFS),others=shuffle(BLEND_DEFS.filter(d=>d.g!==tgt.g)),n=litN();
-  return { id:'digraph', icon:null, faces:shuffle([tgt.e].concat(others.slice(0,n-1).map(o=>o.e))), answer:tgt.e, faceClass:'ctbig', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('Which word starts with the '+tgt.s+' sound? Listen... '+tgt.w+'.',0.82),
-    reframe:()=>learnNarrate(tgt.w.toUpperCase()+' starts with '+tgt.s+'!',0.82), award:()=>recordDiscovery('letters',tgt.g) }; }
+  const picks=shuffle([tgt].concat(others.slice(0,n-1)));
+  return { id:'digraph', icon:null, faces:picks.map(o=>o.e), answer:tgt.e, faceClass:'ctbig', anchorFn:chAnchor(),
+    prompt:()=>learnNarrate('Listen... '+sayTiles(picks)+'. Which one starts with '+tgt.s+'?',0.82),
+    reframe:()=>learnNarrate('"'+tgt.w+'" starts with '+tgt.s+'!',0.82), award:()=>recordDiscovery('letters',tgt.g) }; }
 /* ---- AGE-8 (tier 4) harder quests: within-20 arithmetic, two-digit place value & comparison, 4-sound blends (numeral icons = more abstract/mental) ---- */
 function genAddWithin20(){ const sum=11+Math.floor(Math.random()*10), a=2+Math.floor(Math.random()*(sum-3)), b=sum-a;
   const opts=new Set([sum]); for(let g=0;opts.size<4&&g<40;g++){ const d=sum+(Math.floor(Math.random()*9)-4); if(d>=2&&d<=26)opts.add(d); }
   return { id:'addWithin20', icon:a+'  +  '+b, faces:shuffle([...opts]).map(String), answer:String(sum), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('What is '+numWord(a)+' plus '+numWord(b)+'?'),
-    reframe:()=>learnNarrate('Let us count up... '+numWord(a)+' plus '+numWord(b)+' makes '+numWord(sum)+'!'),
+    prompt:()=>learnNarrate('What is '+a+' plus '+b+'?'),
+    reframe:()=>learnNarrate('Let us count up... '+a+' plus '+b+' makes '+sum+'!'),
     award:()=>recordDiscovery('countedTo',null,sum) }; }
 function genSubWithin20(){ const start=12+Math.floor(Math.random()*9), take=2+Math.floor(Math.random()*(start-3)), left=start-take;
   const opts=new Set([left]); for(let g=0;opts.size<4&&g<40;g++){ const d=left+(Math.floor(Math.random()*9)-4); if(d>=0&&d<=20)opts.add(d); }
   return { id:'subWithin20', icon:start+'  −  '+take, faces:shuffle([...opts]).map(String), answer:String(left), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('What is '+numWord(start)+' take away '+numWord(take)+'?'),
-    reframe:()=>learnNarrate('Count down... '+numWord(start)+' take away '+numWord(take)+' leaves '+numWord(left)+'!'),
+    prompt:()=>learnNarrate('What is '+start+' take away '+take+'?'),
+    reframe:()=>learnNarrate('Count down... '+start+' take away '+take+' leaves '+left+'!'),
     award:()=>recordDiscovery('countedTo',null,left) }; }
 function genPlaceValue99(){ const tens=1+Math.floor(Math.random()*9), ones=Math.floor(Math.random()*10), val=tens*10+ones;
   const opts=new Set([val]); const swap=ones*10+tens; if(swap>=10&&swap<=99&&swap!==val)opts.add(swap);
   for(let g=0;opts.size<4&&g<40;g++){ const d=val+pick([-10,10,-1,1,9,-9,11]); if(d>=10&&d<=99)opts.add(d); }
-  return { id:'placeValue99', icon:'🎁'.repeat(tens)+'  ✨'.repeat(ones), faces:shuffle([...opts]).map(String), answer:String(val), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate(numWord(tens)+' tens and '+numWord(ones)+' ones... what number?'),
+  return { id:'placeValue99', icon:'🎁'.repeat(tens)+(ones?'  '+'✨'.repeat(ones):''), faces:shuffle([...opts]).map(String), answer:String(val), faceClass:'ctnum', anchorFn:chAnchor(),
+    prompt:()=>learnNarrate(numWord(tens)+' '+plural(tens,'ten')+' and '+numWord(ones)+' '+plural(ones,'one')+'... what number?'),
     reframe:()=>learnNarrate('Count the tens... '+tensOnesAloud(tens,ones)), award:()=>recordDiscovery('countedTo',null,val) }; }
-function genCompareTwoDigit(){ let a=10+Math.floor(Math.random()*90), b=10+Math.floor(Math.random()*90), t=0; while(a===b&&t++<6)b=10+Math.floor(Math.random()*90); if(a===b)b=Math.max(10,a-3); const big=Math.max(a,b);
-  return { id:'compareTwoDigit', icon:a+'   ⚖   '+b, faces:shuffle([String(a),String(b)]), answer:String(big), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('Which is bigger... '+numWord(a)+' or '+numWord(b)+'? Tap the bigger number!'),
-    reframe:()=>learnNarrate(numWord(big)+' is bigger than '+numWord(Math.min(a,b))+'!'), award:()=>recordDiscovery('countedTo',null,big) }; }
+function genCompareTwoDigit(){ let a=10+Math.floor(Math.random()*90), b=10+Math.floor(Math.random()*90), t=0; while(a===b&&t++<6)b=10+Math.floor(Math.random()*90); if(a===b)b=(a===10?13:a-3); const big=Math.max(a,b);
+  return { id:'compareTwoDigit', icon:a+'   ⚖️   '+b, faces:shuffle([String(a),String(b)]), answer:String(big), faceClass:'ctnum', anchorFn:chAnchor(),
+    prompt:()=>learnNarrate('Which is bigger... '+a+' or '+b+'? Tap the bigger number!'),
+    reframe:()=>learnNarrate(big+' is bigger than '+Math.min(a,b)+'!'), award:()=>recordDiscovery('countedTo',null,big) }; }
 function genTenMoreLess(){ const base=15+Math.floor(Math.random()*75), more=Math.random()<0.5, res=more?base+10:base-10;
   const opts=new Set([res]); for(let g=0;opts.size<4&&g<40;g++){ const d=res+pick([-1,1,-10,10,-2,2,9]); if(d>=1&&d<=109)opts.add(d); }
   return { id:'tenMoreLess', icon:base+(more?'  + 10':'  − 10'), faces:shuffle([...opts]).map(String), answer:String(res), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('What is ten '+(more?'more':'less')+' than '+numWord(base)+'?'),
-    reframe:()=>learnNarrate('Ten '+(more?'more':'less')+' than '+numWord(base)+' is '+numWord(res)+'!'), award:()=>recordDiscovery('countedTo',null,res) }; }
+    prompt:()=>learnNarrate('What is ten '+(more?'more':'less')+' than '+base+'?'),
+    reframe:()=>learnNarrate('Ten '+(more?'more':'less')+' than '+base+' is '+res+'!'), award:()=>recordDiscovery('countedTo',null,res) }; }
 function genMissingNum(){ const start=5+Math.floor(Math.random()*40), miss=start+1;
   const opts=new Set([miss]); for(let g=0;opts.size<4&&g<40;g++){ const d=miss+(Math.floor(Math.random()*7)-3); if(d>=1&&d<=99&&d!==start&&d!==start+2)opts.add(d); }
   return { id:'missingNum', icon:start+',   __,   '+(start+2), faces:shuffle([...opts]).map(String), answer:String(miss), faceClass:'ctnum', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('What number comes between '+numWord(start)+' and '+numWord(start+2)+'?'),
-    reframe:()=>learnNarrate(numWord(start)+'... '+numWord(miss)+'... '+numWord(start+2)+'! The missing number is '+numWord(miss)+'!'), award:()=>recordDiscovery('countedTo',null,miss) }; }
+    prompt:()=>learnNarrate('What number comes between '+start+' and '+(start+2)+'?'),
+    reframe:()=>learnNarrate(start+'... '+miss+'... '+(start+2)+'! The missing number is '+miss+'!'), award:()=>recordDiscovery('countedTo',null,miss) }; }
 function genBlend4(){ const tgt=pick(BLEND_WORDS),others=shuffle(BLEND_WORDS.filter(o=>o.w!==tgt.w)),n=litN();
   return { id:'blend4', icon:null, faces:shuffle([tgt.e].concat(others.slice(0,n-1).map(o=>o.e))), answer:tgt.e, faceClass:'ctbig', anchorFn:chAnchor(),
     prompt:()=>learnNarrate(tgt.p.join('... ')+'... what word?',0.82),
-    reframe:()=>learnNarrate(tgt.p.join('... ')+'... '+tgt.w.toUpperCase()+'!',0.82), award:()=>recordDiscovery('words',tgt.w) }; }
+    reframe:()=>learnNarrate(tgt.p.join('... ')+'... "'+tgt.w+'"!',0.82), award:()=>recordDiscovery('words',tgt.w) }; }
 function genIdentifyBlend(){ const tgt=pick(BLEND_WORDS),others=shuffle(BLEND_WORDS.filter(o=>o.blend!==tgt.blend)),n=litN();
-  return { id:'identifyBlend', icon:null, faces:shuffle([tgt.e].concat(others.slice(0,n-1).map(o=>o.e))), answer:tgt.e, faceClass:'ctbig', anchorFn:chAnchor(),
-    prompt:()=>learnNarrate('Which word starts with '+tgt.p[0]+'... '+tgt.p[1]+'? Listen... '+tgt.w+'.',0.82),
-    reframe:()=>learnNarrate(tgt.w.toUpperCase()+' starts with the '+tgt.blend.toUpperCase()+' blend!',0.82), award:()=>recordDiscovery('letters',tgt.blend) }; }
+  const picks=shuffle([tgt].concat(others.slice(0,n-1)));
+  return { id:'identifyBlend', icon:null, faces:picks.map(o=>o.e), answer:tgt.e, faceClass:'ctbig', anchorFn:chAnchor(),
+    prompt:()=>learnNarrate('Listen... '+sayTiles(picks)+'. Which one starts with '+tgt.p[0]+'... '+tgt.p[1]+'?',0.82),
+    reframe:()=>learnNarrate('"'+tgt.w+'" starts with '+tgt.p[0]+'... '+tgt.p[1]+'... the letters '+tgt.blend.toUpperCase().split('').join(' ')+'!',0.82), award:()=>recordDiscovery('letters',tgt.blend) }; }
 /* ---- PATTERNS (the Grown-Up "Patterns" helper had no quests behind it): what comes next? AB → AAB/ABB/ABC → skip-counting ---- */
 function patSay(seq){ return seq.map(e=>EDU_NAME[e]).join('... '); }
 function genPattern(){ const kind=pick(effLevel()>=1?['AB','AAB','ABB','ABC','AB']:['AB','AB','ABB']), syms=shuffle(TYPES_E).slice(0,kind==='ABC'?3:2);
-  const unit=kind.split('').map(ch=>syms[ch.charCodeAt(0)-65]), seq=[0,1,2,3,4].map(i=>unit[i%unit.length]), ans=unit[5%unit.length];
+  const unit=kind.split('').map(ch=>syms[ch.charCodeAt(0)-65]), len=pick([4,5,6]), seq=Array.from({length:len},(_,i)=>unit[i%unit.length]), ans=unit[len%unit.length];
   const tiles=[...new Set(unit)]; if(effLevel()>=1){ const extra=TYPES_E.find(t=>!tiles.includes(t)); if(extra)tiles.push(extra); }
   return { id:'patternNext', icon:seq.join(' ')+'  ❓', faces:shuffle(tiles), answer:ans, faceClass:'ctbig', anchorFn:chAnchor(),
     prompt:()=>learnNarrate('What comes next? '+patSay(seq)+'...'),
-    reframe:()=>learnNarrate('Let us say it together... '+patSay(seq)+'... '+EDU_NAME[ans].toUpperCase()+'! The pattern keeps going!'),
+    reframe:()=>learnNarrate('Let us say it together... '+patSay(seq)+'... '+EDU_NAME[ans]+'! The pattern keeps going!'),
     award:()=>{ DISCOVERED.patterns=(DISCOVERED.patterns|0)+1; persistDiscovered(); } }; }
 function genSkipCount(){ const step=pick(numTier()>=3?[2,5,10,10]:[2,5,10]), start=step*(1+Math.floor(Math.random()*3)), seq=[0,1,2,3].map(i=>start+i*step), ans=start+4*step;
   const opts=new Set([ans]); for(const d of shuffle([1,-1,step,-step,2,-2])){ if(opts.size>=4)break; const v=ans+d; if(v>0)opts.add(v); }
   return { id:'skipCount', icon:seq.join(', ')+', ❓', faces:shuffle([...opts]).map(String), answer:String(ans), faceClass:'ctnum', anchorFn:chAnchor(),
     prompt:()=>learnNarrate('Count by '+numWord(step)+'s! '+seq.join('... ')+'... what comes next?'), // digits: TTS says them right, and the caption reads cleanly
     reframe:()=>learnNarrate('Jump by '+numWord(step)+'... '+seq.join('... ')+'... '+ans+'!'),
-    award:()=>{ DISCOVERED.patterns=(DISCOVERED.patterns|0)+1; recordDiscovery('countedTo',null,ans); } }; }
+    award:()=>{ DISCOVERED.patterns=(DISCOVERED.patterns|0)+1; persistDiscovered(); } }; } // (not "counted to" — skip-counting to 70 isn't counting to 70)
 // `max` = phase OUT once curTier exceeds it (so the 8-9 band isn't served the babyish/superseded quests). `tier` = unlock floor.
 const CHALLENGE_DEFS=[ {id:'howMany',skill:'counting',min:0,max:3,gen:genHowMany},{id:'addOneMore',skill:'counting',min:1,max:3,gen:genAddOneMore},{id:'takeAwayShare',skill:'counting',min:0,gen:genTakeAway,need:()=>questPal()!=null},{id:'firstSound',skill:'letters',min:0,max:3,gen:genFirstSound},{id:'sightWordFind',skill:'sightWords',min:0,max:3,gen:genSightWord,need:()=>WORD_BANK.slice(0,wordCeiling()).length>=2},
-  {id:'subitize',skill:'counting',min:1,tier:1,max:3,gen:genSubitize},{id:'makeN',skill:'counting',min:1,tier:1,gen:genMakeN},{id:'compare',skill:'counting',min:2,tier:2,max:3,gen:genCompare},{id:'tensOnes',skill:'counting',min:2,tier:3,max:3,gen:genTensOnes},
-  {id:'blendCVC',skill:'letters',min:1,tier:1,max:3,gen:genBlendCVC,need:()=>(DISCOVERED.letters||[]).length>=3},{id:'rhyme',skill:'letters',min:1,tier:1,gen:genRhyme},{id:'endSound',skill:'letters',min:1,tier:1,gen:genEndSound},{id:'digraph',skill:'letters',min:2,tier:2,gen:genDigraph},
+  {id:'subitize',skill:'counting',min:1,tier:1,max:3,gen:genSubitize},{id:'makeN',skill:'counting',min:1,tier:1,gen:genMakeN},{id:'compare',skill:'counting',min:1,tier:2,max:3,gen:genCompare},{id:'tensOnes',skill:'counting',min:1,tier:3,max:3,gen:genTensOnes},
+  {id:'blendCVC',skill:'letters',min:1,tier:1,max:3,gen:genBlendCVC,need:()=>(DISCOVERED.letters||[]).length>=3},{id:'rhyme',skill:'letters',min:1,tier:1,gen:genRhyme},{id:'endSound',skill:'letters',min:1,tier:1,gen:genEndSound},{id:'digraph',skill:'letters',min:1,tier:2,gen:genDigraph},
   /* AGE-8 tier-4 (8-9 band) */ {id:'addWithin20',skill:'counting',min:2,tier:4,gen:genAddWithin20},{id:'subWithin20',skill:'counting',min:2,tier:4,gen:genSubWithin20},{id:'placeValue99',skill:'counting',min:2,tier:4,gen:genPlaceValue99},{id:'compareTwoDigit',skill:'counting',min:2,tier:4,gen:genCompareTwoDigit},{id:'tenMoreLess',skill:'counting',min:2,tier:4,gen:genTenMoreLess},{id:'missingNum',skill:'counting',min:2,tier:4,gen:genMissingNum},
   {id:'blend4',skill:'letters',min:2,tier:4,gen:genBlend4},{id:'identifyBlend',skill:'letters',min:2,tier:4,gen:genIdentifyBlend},
-  /* PATTERNS */ {id:'patternNext',skill:'patterns',min:0,gen:genPattern},{id:'skipCount',skill:'patterns',min:2,gen:genSkipCount,need:()=>numTier()>=2} ];
+  /* PATTERNS */ {id:'patternNext',skill:'patterns',min:0,gen:genPattern},{id:'skipCount',skill:'patterns',min:1,gen:genSkipCount,need:()=>numTier()>=2} ];
 function offerRound(){ let defs=CHALLENGE_DEFS.filter(d=>skillOn(d.skill)&&effLevel()>=d.min&&(d.tier==null||curTier(d.skill)>=d.tier)&&(d.max==null||curTier(d.skill)<=d.max)&&(!d.need||d.need())); if(defs.length>1)defs=defs.filter(d=>d.id!==CH.lastId); if(!defs.length)return null;
   for(let i=0;i<8;i++){ const def=pick(defs); const r=def.gen(); if(r){ r.skill=def.skill; CH.lastId=r.id; return r; } } return null; }
 function tileFor(val){ return CH.bubble?CH.bubble.faceEls.find(el=>el.textContent===val):null; }
@@ -1120,9 +1141,9 @@ function onTilePick(val){ if(!CH.round||CH.round.done)return;
 function onWrong(val){ CH.busy=true; CH.firstTry=false; const wt=tileFor(val); if(wt){ wt.classList.add('ctwiggle'); setTimeout(()=>{ if(wt){ wt.classList.remove('ctwiggle'); wt.classList.add('ctdim'); } },320); }
   CH.round.reframe(); const at=tileFor(CH.round.answer); if(at) setTimeout(()=>at.classList.add('ctreveal'),360); note(880,0.12,'triangle',0.16);
   CH.resolved=true; CH.busy=false;
-  setTimeout(()=>{ if(CH.round&&!CH.round.done) finishChallenge(); },1700); }
+  const r=CH.round; setTimeout(()=>{ if(CH.round===r&&!r.done) finishChallenge(); },1700); }
 function finishChallenge(){ if(!CH.round||CH.round.done)return; CH.round.done=true;
-  const v=CH.round.anchorFn(new THREE.Vector3()); celebrate(v.x,v.y,v.z,1); fairySay(pick(CH_WIN)); spark(P.x,3,P.z,0xff9ad4,0.7,2); chime(1); ringBell();
+  const v=CH.round.anchorFn(new THREE.Vector3()); celebrate(v.x,v.y,v.z,1); fairySay(CH.firstTry===true?pick((CH_WIN_BY[CH.round.skill]||[]).concat(CH_WIN)):pick(CH_TRIED)); spark(P.x,3,P.z,0xff9ad4,0.7,2); chime(1); ringBell();
   if(CH.round.award)CH.round.award(); if(CH.round.skill) recordMastery(CH.round.skill, CH.firstTry===true); DISCOVERED.challenges=(DISCOVERED.challenges||0)+1; persistDiscovered();
   const _cc=DISCOVERED.challenges|0; if(_cc>0 && _cc%5===0) setTimeout(()=>startFlight(_cc%10===0), 1300); // every 5 correct -> the unicorn flies (grand flight every 10)
   addXP(CH.firstTry===true?5:2); // learning earns the most Sparkle XP (first-try worth more; a got-it-eventually still earns -> no-fail progress)
@@ -1202,7 +1223,7 @@ function spawnCollectible(){ const t=TYPES[Math.floor(Math.random()*TYPES.length
   const m=new THREE.Mesh(t.geo,t.mat);
   m.position.set(x,y,z); m.scale.setScalar(t.flat?1.25:1); m.userData={type:t.e,base:y,ph:Math.random()*6.28};
   if(LOW) m.add(glowSprite(t.col,1.2,0.4)); // mobile: a soft halo so each treasure glows like a lantern (bloom is off on LOW) — rides the bob/spin loop for free
-  if(t.e==='💖'){ const w=maybeAssignWord(); if(w){ m.userData.word=w; m.material=t.mat.clone(); m.material.emissiveIntensity=0.85; addLabelSprite(m,w.toUpperCase(),'word'); } }
+  if(t.e==='💖'){ const w=maybeAssignWord(); if(w){ m.userData.word=w; m.material=t.mat.clone(); m.material.emissiveIntensity=0.85; addLabelSprite(m,w,'word'); } }
   if((t.e==='⭐'||t.e==='💎') && !m.userData.word){ const L=maybeAssignLetter(t.e); if(L){ m.userData.letter=L; m.material=t.mat.clone(); m.material.emissiveIntensity=1.1; addLabelSprite(m,L.toUpperCase(),'glyph'); } }
   scene.add(m); collectibles.push(m); }
 function topUpCollectibles(){ if(zone==='school')return; const target=(zone==='gathering')?16:(activeWorldGroup()?20:26); while(collectibles.length<target) spawnCollectible(); }
@@ -1221,10 +1242,11 @@ function makeBaby(kind,x,z){ const g=new THREE.Group(); const col=kind==='bunny'
   g.position.set(x,groundH(x,z),z); g.userData={kind,ph:Math.random()*6.28,follow:false}; meadow.add(g); babies.push(g); return g; }
 for(let i=0;i<5;i++){ const a=Math.random()*6.28,d=14+Math.random()*60; makeBaby(['bunny','foal','butterfly'][i%3],Math.cos(a)*d,Math.sin(a)*d); }
 // EARNED followers (star prizes, level-ups, the mane unlock) are saved — they used to vanish on reload
-const PAL_KINDS=['bunny','foal','butterfly'], MAX_EARNED=9, EARNED_PALS=[];
+const PAL_KINDS=['bunny','foal','butterfly'], MAX_EARNED=12, EARNED_PALS=[];
 try{ const a=JSON.parse(localStorage.getItem('sparklehoof_pals')||'[]'); if(Array.isArray(a))a.forEach(k=>{ if(PAL_KINDS.includes(k)&&EARNED_PALS.length<MAX_EARNED)EARNED_PALS.push(k); }); }catch(e){}
-function earnPal(kind,x,z){ if(EARNED_PALS.length>=MAX_EARNED)return null; const b=makeBaby(kind,x,z); b.userData.follow=true; EARNED_PALS.push(kind);
+function earnPal(kind,x,z,limit){ if(EARNED_PALS.length>=(limit||MAX_EARNED))return null; const b=makeBaby(kind,x,z); b.userData.follow=true; EARNED_PALS.push(kind);
   try{ localStorage.setItem('sparklehoof_pals',JSON.stringify(EARNED_PALS)); }catch(e){} return b; }
+function gatherFollowers(){ babies.forEach((b,i)=>{ if(b.userData.follow&&Math.hypot(b.position.x-P.x,b.position.z-P.z)>30){ const a=i*2.4; b.position.set(P.x+Math.cos(a)*4,groundH(P.x,P.z),P.z+Math.sin(a)*4); } }); }
 function respawnEarnedPals(){ EARNED_PALS.forEach((k,i)=>{ const a=i/EARNED_PALS.length*6.28; makeBaby(k,P.x+Math.cos(a)*5,P.z+Math.sin(a)*5).userData.follow=true; }); }
 
 /* ============================================================
@@ -1260,17 +1282,17 @@ function pickVoice(){ try{ voices=speechSynthesis.getVoices()||[]; const en=voic
 if(SPEECH_OK) try{ speechSynthesis.onvoiceschanged=pickVoice; pickVoice(); }catch(e){}
 /* ONE calm voice: lines never overlap and never truncate each other. A new line that
    arrives while Twinkle is speaking waits in a single slot (newest wins) and speaks on end. */
-let speaking=false, pendingTxt=null, pendingRate=1.02, speakSafety=null;
+let speaking=false, pendingTxt=null, pendingRate=1.02, speakSafety=null, speakGen=0;
 function fairySay(txt,rate){ if(!soundOn||!txt||!SPEECH_OK)return; rate=(rate!=null?rate:(__rateOverride!=null?__rateOverride:1.02));
   if(speaking){ pendingTxt=txt; pendingRate=rate; return; }
   _speakNow(txt,rate); }
 function _speakNow(txt,rate){ try{ const u=new SpeechSynthesisUtterance(txt); u.pitch=1.6; u.rate=rate; u.volume=0.9; if(fairyVoice)u.voice=fairyVoice;
-    speaking=true;
-    const done=()=>{ if(!speaking)return; speaking=false; if(speakSafety){clearTimeout(speakSafety);speakSafety=null;}
+    speaking=true; const gen=++speakGen;
+    const done=()=>{ if(gen!==speakGen||!speaking)return; speaking=false; if(speakSafety){clearTimeout(speakSafety);speakSafety=null;}
       if(pendingTxt!=null){ const t=pendingTxt,r=pendingRate; pendingTxt=null; if(soundOn)_speakNow(t,r); } };
     u.onend=done; u.onerror=done; speakSafety=setTimeout(done,400+txt.length*120); // fallback if onend never fires
     speechSynthesis.speak(u); }catch(e){ speaking=false; } }
-function stopSpeech(){ try{ speechSynthesis.cancel(); }catch(e){} speaking=false; pendingTxt=null; if(speakSafety){clearTimeout(speakSafety);speakSafety=null;} }
+function stopSpeech(){ speakGen++; try{ speechSynthesis.cancel(); }catch(e){} speaking=false; pendingTxt=null; if(speakSafety){clearTimeout(speakSafety);speakSafety=null;} }
 const LINES={ collect:["Yay!","Ooh, pretty!","You got it!","Sparkly!"], milestone:["Wow! You're amazing!","Look what you made!","So magical!"], magic:["Sparkle sparkle!","Magic!","Pretty flowers!"], idle:["This way!","Let's find more stars!","Come play!"] };
 function say(cat){ const a=LINES[cat]; if(a) fairySay(a[Math.floor(Math.random()*a.length)]); }
 
@@ -1340,7 +1362,7 @@ function shapeMarkerGeo(shape){ if(SHAPE_GEO_CACHE[shape.name])return SHAPE_GEO_
 function dropShapeMarker(shape,cx,cz,gy){
   const m=new THREE.Mesh(shapeMarkerGeo(shape),SHAPE_MATS[Math.floor(Math.random()*SHAPE_MATS.length)]);
   m.rotation.x=-Math.PI/2; m.position.set(cx,gy+0.07,cz); m.scale.setScalar(0.15); m.userData.grow=true;
-  (zone==='gathering'?gather:(activeWorldGroup()||meadow)).add(m); shapeMarkers.push(m);
+  (zone==='gathering'?gather:zone==='school'?school:(activeWorldGroup()||meadow)).add(m); shapeMarkers.push(m);
   while(shapeMarkers.length>10){ const old=shapeMarkers.shift(); if(old.parent)old.parent.remove(old); } }
 function narrateMagicShape(shape,nFlowers){
   recordDiscovery('shapes',shape.name);
@@ -1367,7 +1389,7 @@ function castMagic(){ if(gameState!=='play'||anyOverlayOpen())return; initAudio(
     if(teach){ shapeIdx=(shapeIdx+1)%MAGIC_SHAPES.length; try{localStorage.setItem('sparklehoof_shapeidx',String(shapeIdx));}catch(e){} }
     const pts=shapePoints(shape,x,z,LEVEL>=15?5.6:(MAGIC_BIG?4.2:2.6)); // bigger spell radius at level 8, bigger still at 15 (the "even bigger magic" level-up)
     const wg=activeWorldGroup(); // grow magic into the current biome so it never leaks back to the meadow
-    pts.forEach(p=>{ const fg=cheapFlower(p.x,p.z,0.2,groundAt(p.x,p.z)); (inGather?gather:(wg||flowers)).add(fg); grownFlowers.push(fg); });
+    pts.forEach(p=>{ const fg=cheapFlower(p.x,p.z,0.2,groundAt(p.x,p.z)); (inGather?gather:zone==='school'?school:(wg||flowers)).add(fg); grownFlowers.push(fg); });
     while(grownFlowers.length>(LOW?40:140)){ const old=grownFlowers.shift(); if(old.parent)old.parent.remove(old); } // FIFO cap (tighter on mobile)
     if(teach) dropShapeMarker(shape,x,z,groundAt(x,z));
     paintRainbow(x,z); fireRing(x,groundAt(x,z),z); P.magic=0; chime(2); saveMeadowSoon();
@@ -1375,7 +1397,7 @@ function castMagic(){ if(gameState!=='play'||anyOverlayOpen())return; initAudio(
   } else { P.magic=Math.max(0,P.magic-0.25); note(660,0.12,'triangle',0.15); }
 }
 const sky=[]; function paintRainbow(x,z){ const g=buildRainbowGroup();
-  g.position.set(x,groundAt(x,z)+0.5,z); g.rotation.y=Math.random()*6.28; g.scale.setScalar(0.2); (zone==='gathering'?gather:(activeWorldGroup()||scene)).add(g); sky.push({g,t:0});
+  g.position.set(x,groundAt(x,z)+0.5,z); g.rotation.y=Math.random()*6.28; g.scale.setScalar(0.2); (zone==='gathering'?gather:zone==='school'?school:(activeWorldGroup()||scene)).add(g); sky.push({g,t:0});
   while(sky.length>(LOW?8:16)){ const old=sky.shift(); if(old.g.parent)old.g.parent.remove(old.g); } } // FIFO cap (tighter on mobile: each rainbow is 6 meshes)
 
 /* ============================================================
@@ -1411,7 +1433,7 @@ function fanfare(){ if(!AC||!soundOn)return; [523.25,659.25,783.99,1046.5].forEa
 function givePrize(kind,pos){ const emoji=kind==='star'?'🎁':'💝', label=kind==='star'?'Star Prize!':'Heart Prize!';
   celebrate(P.x,3,P.z,3); fanfare(); showPop(emoji,label); say('milestone');
   for(let i=0;i<32;i++) spark(P.x+(Math.random()-0.5)*2.2,2.5+Math.random()*2.2,P.z+(Math.random()-0.5)*2.2,[0xffe66b,0xff7ac0,0xb38aff,0x8ad0ff][i%4],0.6+Math.random()*0.5,2+Math.random()*3);
-  if(kind==='star'){ earnPal(PAL_KINDS[EARNED_PALS.length%3],P.x+(Math.random()*4-2),P.z+(Math.random()*4-2)); }
+  if(kind==='star'){ earnPal(PAL_KINDS[EARNED_PALS.length%3],P.x+(Math.random()*4-2),P.z+(Math.random()*4-2),9); } // prizes stop at 9 so level-up friends always fit
   else { for(let i=0;i<16;i++){ const a=Math.random()*6.28,r=Math.random()*3.5; spark(P.x+Math.cos(a)*r,3+Math.random()*2,P.z+Math.sin(a)*r,0xff5fae,0.7,1+Math.random()*2); } }
 }
 function unlock(key,emoji,label){ UNLOCK[key]=true; persist(); celebrate(P.x,3,P.z,3); say('milestone'); showPop(emoji,label); buildSwatches(); }
@@ -1439,7 +1461,7 @@ function bandShimmer(){ const bands=document.querySelectorAll('#arc .band'); ban
 const SW={ body:[0xffffff,0xfff0a0,0xffc8ec,0xc9b3ff,0xb3e0ff,0xb6ffcf,0xffd0a0,0xffb3c8,0x7fd0ff,0xff7ac0],
   mane:['rainbow','shimmer',0xff6b6b,0xffb86b,0xffe66b,0x8ce66b,0x6bc6ff,0xb36bff,0xff9ad4,0x00d0a0,0xffffff],
   horn:[0xffe66b,0xff9ad4,0x8ad0ff,0xb38aff,0xffffff,0x8ce66b,0xff4d6d,0x00e5ff],
-  trail:['⭐','💖','🫧','🌸','🌟','✨','🌈','💫'], hat:['none','witch'] };
+  trail:['⭐','💖','💧','🌸','🌟','✨','🌈','💫'], hat:['none','witch'] };
 const HAT_ICON={none:'🦄',witch:'🧙'};
 // new swatches unlock by Sparkle Level (existing ones have no entry = available from level 1; never locks a current pick)
 const SWMIN=new Map([['body:'+0x7fd0ff,6],['body:'+0xff7ac0,14],['mane:'+0x00d0a0,11],['mane:'+0xffffff,18],['horn:'+0xff4d6d,3],['horn:'+0x00e5ff,12],['trail:🌈',4],['trail:💫',9]]);
@@ -1460,7 +1482,7 @@ function buildSwatches(){ const hr=document.getElementById('hatRow'); if(hr)hr.s
 /* ---- SPARKLE LEVEL: one visible level (1..cap, age-capped) earned MAINLY by learning; each level-up grants a delightful unlock ---- */
 function levelCap(){ return [6,12,18,20][Math.min(3,SETTINGS.ageStop|0)]; }
 function xpToNext(L){ return 6+(L-1)*2; } // gentle curve; first level-ups come fast
-function persistLevel(){ try{ localStorage.setItem('sparklehoof_level',JSON.stringify({l:LEVEL,xp:LXP})); }catch(e){} }
+function persistLevel(){ LEVEL_EARNED=Math.max(LEVEL_EARNED,LEVEL); try{ localStorage.setItem('sparklehoof_level',JSON.stringify({l:LEVEL,xp:LXP,e:LEVEL_EARNED})); }catch(e){} }
 function updateLevelBadge(){ const el=document.getElementById('lvl'); if(!el)return; const n=document.getElementById('lvlnum'); if(n)n.textContent=LEVEL;
   const pct=(LEVEL>=levelCap())?100:Math.max(0,Math.min(100,Math.round(LXP/xpToNext(LEVEL)*100)));
   el.style.background='conic-gradient(#ffd24a '+pct+'%, rgba(255,170,225,.45) 0)'; }
@@ -1470,7 +1492,7 @@ const LEVEL_UNLOCKS={
   5:{say:'a magic Shimmer Mane that changes colors!',apply:()=>{ if(!UNLOCK.rainbowMane){ UNLOCK.rainbowMane=true; LOOK.mane='shimmer'; buildUnicorn(); persist(); } }},
   6:{say:'a sky-blue coat color in dress-up!'},
   7:{say:'another little friend to follow you!',apply:()=>{ earnPal('bunny',P.x-2,P.z+2); }},
-  8:{say:'BIGGER magic spells!',apply:()=>{ MAGIC_BIG=true; }}, 9:{say:'a shooting-comet trail in dress-up!'},
+  8:{say:'bigger magic spells!',apply:()=>{ MAGIC_BIG=true; }}, 9:{say:'a shooting-comet trail in dress-up!'},
   10:{say:'sparkly Galaxy Wings!',apply:()=>{ if(!UNLOCK.galaxyWings) grantGalaxyWings(); }},
   11:{say:'a teal mane color in dress-up!'}, 12:{say:'an aqua horn color in dress-up!'},
   13:{say:'a new friend to follow you!',apply:()=>{ earnPal('foal',P.x+2,P.z-2); }},
@@ -1480,7 +1502,7 @@ function onLevelUp(L){ const u=LEVEL_UNLOCKS[L], wk=WORLD_AT_LEVEL[L], wcfg=wk?W
   try{ celebrate(P.x,3,P.z,2); firePillar(P.x,groundAt(P.x,P.z),P.z); }catch(e){} for(let i=0;i<16;i++) spark(P.x+(Math.random()-0.5)*3,2+Math.random()*3.5,P.z+(Math.random()-0.5)*3,[0xff6b6b,0xffd24a,0x8ad0ff,0xb38aff,0xff9ad4][i%5],0.6,2.2);
   try{ fanfare(); }catch(e){} try{ chime(2); }catch(e){} try{ showPop(wcfg?wcfg.icon:'🌟', wcfg?'New World!':'Level '+L+'!'); }catch(e){}
   const el=document.getElementById('lvl'); if(el){ el.classList.add('bump'); setTimeout(()=>el.classList.remove('bump'),450); }
-  let line='Hooray! You are now level '+numWord(L)+'! '+((u&&u.say)?u.say:'You are growing so much!');
+  const us=(u&&u.say)?u.say:'You are growing so much!'; let line='Hooray! You are now level '+numWord(L)+'! '+(/^[a-z]/.test(us)?'You got '+us:us);
   if(wcfg){ if(!UNLOCKED_WORLDS.has(wk)){ UNLOCKED_WORLDS.add(wk); persistWorlds(); } line+=' And a whole new world opened — the '+wcfg.name+'! Tap the map to visit!'; }
   fairySay(line);
   if(u&&u.apply){ try{ u.apply(); }catch(e){} }
@@ -1489,8 +1511,8 @@ function onLevelUp(L){ const u=LEVEL_UNLOCKS[L], wk=WORLD_AT_LEVEL[L], wcfg=wk?W
   try{ buildSwatches(); }catch(e){} updateLevelBadge(); }
 function addXP(n){ if(LEVEL<levelCap()){ LXP+=n; while(LEVEL<levelCap() && LXP>=xpToNext(LEVEL)){ LXP-=xpToNext(LEVEL); LEVEL++; onLevelUp(LEVEL); } } if(LEVEL>=levelCap()) LXP=0; persistLevel(); updateLevelBadge(); }
 // keep LEVEL/XP/magic consistent if a grown-up lowers the age band (cap can drop below current level); the only time we ever reduce a level, and only by a deliberate parent setting
-function clampLevelToCap(){ const cap=levelCap(); if(LEVEL>cap)LEVEL=cap; if(LEVEL>=cap)LXP=0; MAGIC_BIG=LEVEL>=8; persistLevel();
-  let changed=false; WORLDS.forEach(w=>{ if(!w.home&&w.req>LEVEL&&UNLOCKED_WORLDS.delete(w.key))changed=true; }); if(changed)persistWorlds(); // re-lock worlds above a newly-lowered cap (silent, no scold)
+function clampLevelToCap(){ const cap=levelCap(), was=LEVEL; LEVEL=Math.max(1,Math.min(LEVEL_EARNED,cap)); if(LEVEL!==was)LXP=0; if(LEVEL>=cap)LXP=0; MAGIC_BIG=LEVEL>=8; persistLevel(); // raising the band again restores her earned level
+  let changed=false; WORLDS.forEach(w=>{ if(w.home)return; if(w.req>LEVEL){ if(UNLOCKED_WORLDS.delete(w.key))changed=true; } else if(!UNLOCKED_WORLDS.has(w.key)){ UNLOCKED_WORLDS.add(w.key); changed=true; } }); if(changed)persistWorlds(); // re-lock worlds above a newly-lowered cap (silent, no scold)
   if(WORLD_BY_KEY[zone]&&!WORLD_BY_KEY[zone].home&&!UNLOCKED_WORLDS.has(zone)) returnToMeadow(); } // never strand the child inside a now-locked world
 document.getElementById('tWardrobe').addEventListener('click',()=>{ buildSwatches(); document.getElementById('wardrobe').style.display='flex'; note(660,0.1,'triangle',0.16); }); // rebuild on open so level-gated locks are always current
 document.getElementById('wclose').addEventListener('click',()=>{ document.getElementById('wardrobe').style.display='none'; note(784,0.12,'triangle',0.18); });
@@ -1498,8 +1520,8 @@ function syncMuteIcon(){ const el=document.getElementById('tMute'); if(el)el.tex
 document.getElementById('tMute').addEventListener('click',()=>{ soundOn=!soundOn; try{ localStorage.setItem('sparklehoof_sound',soundOn?'1':'0'); }catch(e){} syncMuteIcon(); setPadGain(); if(soundOn)note(660,0.1,'triangle',0.16); else stopSpeech(); if(CH.bubble&&CH.round) refreshChallengeText(); });
 function buildLocket(){ const el=document.getElementById('lkGrid'); if(!el)return; el.innerHTML='';
   WORD_BANK.forEach(w=>{ const got=metWords.has(w); const chip=document.createElement('div'); chip.className='sw'; chip.style.background='#fff'; if(!got)chip.style.opacity='.32';
-    chip.textContent=got?w.toUpperCase():'💗';
-    if(got) chip.addEventListener('click',()=>{ learnNarrate(w.toUpperCase()); note(784,0.1,'triangle',0.16); chip.style.transform='scale(1.12)'; setTimeout(()=>chip.style.transform='',160); });
+    chip.textContent=got?w:'💗';
+    if(got) chip.addEventListener('click',()=>{ learnNarrate('"'+w+'"'); note(784,0.1,'triangle',0.16); chip.style.transform='scale(1.12)'; setTimeout(()=>chip.style.transform='',160); });
     el.appendChild(chip); }); }
 document.getElementById('tLocket').addEventListener('click',()=>{ buildLocket(); document.getElementById('locket').style.display='flex'; note(660,0.1,'triangle',0.16); });
 document.getElementById('lkclose').addEventListener('click',()=>{ document.getElementById('locket').style.display='none'; note(784,0.12,'triangle',0.18); });
@@ -1525,7 +1547,7 @@ const BADGES=[
   {e:'🎯',l:'Quest Starter',got:()=>(DISCOVERED.challenges||0)>=1},
   {e:'➕',l:'Math Star',got:()=>(DISCOVERED.challenges||0)>=8},
   {e:'🏅',l:'Quest Champ',got:()=>(DISCOVERED.challenges||0)>=20},
-  {e:'🟰',l:'Bond Builder',got:()=>(MASTERY.counting.tier|0)>=1},
+  {e:'🔗',l:'Bond Builder',got:()=>(MASTERY.counting.tier|0)>=1},
   {e:'🔡',l:'Blend Star',got:()=>(MASTERY.letters.tier|0)>=1},
   {e:'🔠',l:'Digraph Hero',got:()=>litTier()>=2},
   {e:'🏯',l:'Tens Builder',got:()=>numTier()>=3},
@@ -1597,7 +1619,7 @@ function renderDiscovered(){ const el=document.getElementById('pdisc'); if(!el)r
 function buildParentPanel(){ const sk=document.getElementById('pskills'); sk.innerHTML='';
   SKILL_LABELS.forEach(p=>{ const row=document.createElement('div'); row.className='prow'; const lbl=document.createElement('div'); lbl.className='pl'; lbl.textContent=p[1]; row.appendChild(lbl);
     const tg=document.createElement('div'); tg.className='ptog'+(skillOn(p[0])?' on':''); tg.addEventListener('click',()=>{ SETTINGS.skills[p[0]]=!SETTINGS.skills[p[0]]; tg.classList.toggle('on'); persistSettings(); }); row.appendChild(tg); sk.appendChild(row); });
-  pSeg('pAge',['4-5','6-7','7-8','8-9'],Math.min(3,SETTINGS.ageStop|0),i=>{ SETTINGS.ageStop=i; eduLevel=Math.max(eduLevel,i); persistSettings(); persist(); clampLevelToCap(); updateLevelBadge(); }); // re-eval level cap (and clamp) when band changes
+  pSeg('pAge',['4-5','5-6','6-7','8-9'],Math.min(3,SETTINGS.ageStop|0),i=>{ SETTINGS.ageStop=i; eduLevel=Math.max(eduLevel,i); persistSettings(); persist(); clampLevelToCap(); updateLevelBadge(); }); // re-eval level cap (and clamp) when band changes
   pTog('pHold',SETTINGS.holdSteady,v=>{ SETTINGS.holdSteady=v; persistSettings(); });
   pTog('pSeason',SETTINGS.seasonal,v=>{ SETTINGS.seasonal=v; persistSettings(); applySeason(); });
   pTog('pNarMute',SETTINGS.narrationMute,v=>{ SETTINGS.narrationMute=v; if(v) stopSpeech(); persistSettings(); });
@@ -1606,10 +1628,10 @@ function buildParentPanel(){ const sk=document.getElementById('pskills'); sk.inn
   const wm=[0,15,25,40]; pSeg('pWind',['Off','15m','25m','40m'],Math.max(0,wm.indexOf(SETTINGS.windDownMin)),i=>{ SETTINGS.windDownMin=wm[i]; persistSettings(); });
   renderDiscovered(); }
 function openParentPanel(){ buildParentPanel(); document.getElementById('parent').style.display='flex'; note(523,0.12,'triangle',0.16); }
-function resetProfile(){ try{ ['sparklehoof_counts','sparklehoof_unlock','sparklehoof_look','sparklehoof_edulevel','sparklehoof_settings','sparklehoof_discovered','sparklehoof_words','sparklehoof_letters','sparklehoof_shapeidx','sparklehoof_meadow','sparklehoof_mastery','sparklehoof_level','sparklehoof_worlds','sparklehoof_pals'].forEach(k=>localStorage.removeItem(k)); }catch(e){} location.reload(); }
+function resetProfile(){ try{ ['sparklehoof_counts','sparklehoof_unlock','sparklehoof_look','sparklehoof_edulevel','sparklehoof_settings','sparklehoof_discovered','sparklehoof_words','sparklehoof_letters','sparklehoof_shapeidx','sparklehoof_meadow','sparklehoof_mastery','sparklehoof_level','sparklehoof_worlds','sparklehoof_pals','sparklehoof_photos'].forEach(k=>localStorage.removeItem(k)); }catch(e){} location.reload(); }
 document.getElementById('pclose').addEventListener('click',()=>{ document.getElementById('parent').style.display='none'; note(784,0.12,'triangle',0.18); });
-let __resetArm=0; document.getElementById('presetbtn').addEventListener('click',function(){ const now=performance.now();
-  if(now-__resetArm<3000){ resetProfile(); } else { __resetArm=now; this.textContent='Tap again to clear ✓'; setTimeout(()=>{ this.textContent='Start fresh (clear all progress)'; },3000); } });
+document.getElementById('presetbtn').addEventListener('click',function(){ let a=null; try{ a=prompt('Grown-ups: type RESET to clear ALL progress (levels, stickers, friends, photos).'); }catch(e){}
+  if(a&&a.trim().toUpperCase()==='RESET') resetProfile(); }); // a typed word — two quick taps were easy for a child to hit
 
 /* ============================================================
    RAINBOW STAR  ->  the big FRIEND GATHERING
@@ -1655,7 +1677,7 @@ function returnToMeadow(){ if(zone==='meadow')return; const from=zone; zone='mea
   for(let i=grownFlowers.length-1;i>=0;i--){ if(grownFlowers[i].parent===gather){ gather.remove(grownFlowers[i]); grownFlowers.splice(i,1); } } // don't leave party magic stacking up
   for(let i=sky.length-1;i>=0;i--){ if(sky[i].g.parent===gather){ gather.remove(sky[i].g); sky.splice(i,1); } }
   weatherT=150+Math.random()*120;
-  P.x=0; P.z=6; P.dir=Math.PI; P.speed=0; cam.yaw=P.dir; scene.background.set(0xbfe3ff); if(scene.fog)scene.fog.color.set(0xd9ecff); topUpCollectibles(); magicStarT=16;
+  P.x=0; P.z=6; P.dir=Math.PI; P.speed=0; cam.yaw=P.dir; gatherFollowers(); scene.background.set(0xbfe3ff); if(scene.fog)scene.fog.color.set(0xd9ecff); topUpCollectibles(); magicStarT=16;
   setTimeout(()=>fairySay(from==='gathering'?'That was fun! Find the rainbow star to visit again.':'Back to the meadow! Open the map to explore more worlds.'),300); }
 
 /* ---- SPARKLE SCHOOL interior: a cozy classroom you drive into; the learning games happen in here ---- */
@@ -1666,7 +1688,7 @@ function drawBoard(lines){ if(!schoolBoard)return; const x=schoolBoard.ctx, W=51
   lines.forEach((s,i)=>{ let fs=92; x.font='bold '+fs+'px "Comic Sans MS",sans-serif'; while(x.measureText(s).width>W-44 && fs>22){ fs-=4; x.font='bold '+fs+'px "Comic Sans MS",sans-serif'; } x.fillText(s, W/2, H*(i+1)/(lines.length+1)); });
   schoolBoard.tex.needsUpdate=true; }
 function setBoardDefault(){ drawBoard(['1  2  3  4  5','a  b  c  d']); }
-function setBoardQuestion(r){ if(!schoolBoard)return; if(r&&r.icon) drawBoard([r.icon]); else if(r) drawBoard(['🎧 Listen!','tap a picture']); else setBoardDefault(); }
+function setBoardQuestion(r){ if(!schoolBoard)return; if(r&&r.id==='subitize') drawBoard(['👀 Quick look!']); else if(r&&r.icon) drawBoard([r.icon]); else if(r) drawBoard(['🎧 Listen!',r.faceClass==='ctword'?'tap the word':'tap a picture']); else setBoardDefault(); }
 function ringBell(){ if(zone!=='school'||!schoolBell)return; bellSwing=1.0; owlCheer=1.0; note(988,0.16,'sine',0.18); note(740,0.34,'sine',0.16,0.14); }
 function stripTex(items,bg,fg){ const n=items.length, c=document.createElement('canvas'); c.width=128*n; c.height=128; const x=c.getContext('2d');
   x.fillStyle=bg; x.fillRect(0,0,c.width,128); x.textAlign='center'; x.textBaseline='middle'; x.font='bold 84px "Comic Sans MS",sans-serif';
@@ -1737,7 +1759,7 @@ function enterSchool(){ if(zone==='school')return; buildSchoolInterior();
 function exitSchool(){ if(zone!=='school')return;
   if(CH.bubble){ CH.bubble.remove(); CH.bubble=null; CH.round=null; CH.busy=false; CH.resolved=false; } setBoardDefault();
   zone='meadow'; school.visible=false; gather.visible=false; meadow.visible=true; clearCollectibles();
-  P.x=SCHOOL_DOOR.x+6; P.z=SCHOOL_DOOR.z+6; P.dir=Math.PI/4; P.speed=0; cam.yaw=P.dir; // step out in front of the castle
+  P.x=SCHOOL_DOOR.x+6; P.z=SCHOOL_DOOR.z+6; P.dir=Math.PI/4; P.speed=0; cam.yaw=P.dir; gatherFollowers(); // step out in front of the castle
   scene.background.set(0xbfe3ff); if(scene.fog) scene.fog.color.set(0xd9ecff); topUpCollectibles(); magicStarT=20; weatherT=120+Math.random()*90;
   chInvite.t=0; chInvite.next=60+Math.random()*40;
   fairySay('Come back to school any time to play more games!'); }
@@ -1906,8 +1928,8 @@ function updateCritters(dt){ if(!critters.length)return; for(const c of critters
     if(nightF>0.45){ c.material.color.setHex(0xffe089); c.material.opacity=0.95; } else { c.material.color.setHex(u.col); c.material.opacity=0.75; } } }
 let __saveMeadowT=null;
 function saveMeadowSoon(){ if(__saveMeadowT)return; __saveMeadowT=setTimeout(()=>{ __saveMeadowT=null; saveMeadow(); },1500); }
-function saveMeadow(){ try{ const f=grownFlowers.filter(x=>x.parent===flowers).slice(-40).map(x=>[Math.round(x.position.x),Math.round(x.position.z)]);
-  const r=sky.filter(s=>s.g.parent===scene).slice(-12).map(s=>[Math.round(s.g.position.x),Math.round(s.g.position.z),+s.g.rotation.y.toFixed(2)]);
+function saveMeadow(){ try{ const inMap=o=>Math.abs(o.position.x)<MAP&&Math.abs(o.position.z)<MAP; const f=grownFlowers.filter(x=>x.parent===flowers&&inMap(x)).slice(-40).map(x=>[Math.round(x.position.x),Math.round(x.position.z)]);
+  const r=sky.filter(s=>s.g.parent===scene&&inMap(s.g)).slice(-12).map(s=>[Math.round(s.g.position.x),Math.round(s.g.position.z),+s.g.rotation.y.toFixed(2)]);
   localStorage.setItem('sparklehoof_meadow',JSON.stringify({f:f,r:r,tod:+tod.toFixed(3)})); }catch(e){} }
 function restoreMeadow(){ try{ const d=JSON.parse(localStorage.getItem('sparklehoof_meadow')||'null'); if(!d)return; if(typeof d.tod==='number')tod=d.tod;
   // restored magic re-joins the live FIFO lists, so the NEXT save keeps it (it used to be dropped → "my meadow" faded after two reloads) — and uses the 1-draw-call flower
@@ -1967,7 +1989,7 @@ function buildPumpkinPatch(){ if(pumpkinGroup)return; pumpkinGroup=new THREE.Gro
   for(let i=0;huntLeft.length<HUNT_N&&i<400;i++){ const a=Math.random()*6.28,d=22+Math.random()*(MAP-40),x=Math.cos(a)*d,z=Math.sin(a)*d;
     if(nearCastle(x,z)||nearPond(x,z)||nearStart(x,z)||Math.hypot(x-PATCH.x,z-PATCH.z)<PATCH.r+6||huntLeft.some(p=>Math.hypot(p.position.x-x,p.position.z-z)<24))continue; huntLeft.push(huntPumpkin(x,z)); }
   huntFound=0; pkHintBase=performance.now(); updatePumpkinChip(); }
-function updatePumpkinChip(bump){ const c=document.getElementById('pumpkinChip'); if(!c)return; const on=!!pumpkinGroup&&pumpkinGroup.visible&&gameState==='play';
+function updatePumpkinChip(bump){ const c=document.getElementById('pumpkinChip'); if(!c)return; const on=!!pumpkinGroup&&pumpkinGroup.visible&&gameState==='play'&&zone==='meadow';
   c.style.display=on?'block':'none'; document.getElementById('pkN').textContent=huntFound; if(bump){ c.classList.remove('bump'); void c.offsetWidth; c.classList.add('bump'); } }
 function applySeason(){ const on=pumpkinSeason(); if(on&&!pumpkinGroup&&gameState==='play'){ buildPumpkinPatch(); setTimeout(()=>learnNarrate('It is pumpkin season! Five little pumpkins are hiding in the meadow. Can you find them all?'),2600); }
   if(pumpkinGroup){ pumpkinGroup.visible=on; huntLeft.forEach(p=>p.visible=on); } updatePumpkinChip(); }
@@ -1988,7 +2010,9 @@ function pumpkinPrize(){ fanfare(); showPop('🎃','All 5 pumpkins!'); addXP(3);
    UPDATE LOOP
    ============================================================ */
 const trailEmit={t:0};
+let __lastZone=null;
 function update(dt){
+  if(zone!==__lastZone){ __lastZone=zone; updatePumpkinChip(); } // HUD bits that depend on where she is
   if(W!==innerWidth||H!==innerHeight) onResize(); // self-heal: keep canvas/camera/bubbles synced to the real viewport (rotate, iOS toolbar)
   // movement: buttons/arrows OR hold the mouse on the scene; forward = HOLD longer to gallop fast; Left/Right or cursor side = steer
   const steering = mouse.down && gameState==='play' && !anyOverlayOpen();
@@ -2007,8 +2031,10 @@ function update(dt){
     else { const lim=MAP-6; P.x=Math.max(-lim,Math.min(lim,P.x)); P.z=Math.max(-lim,Math.min(lim,P.z)); }
     // sparkle trail — kicks up extra dust at a gallop
     const fast=P.speed>12; trailEmit.t-=dt; if(trailEmit.t<=0){ trailEmit.t=fast?0.03:0.06; const tx=P.x-Math.sin(P.dir)*1.5, tz=P.z-Math.cos(P.dir)*1.5;
-      const tc={'⭐':0xffe66b,'💖':0xff7ac0,'🫧':0x8ad0ff,'🌸':0xff9ad4,'🌟':0xffd24a,'✨':0xffffff}[LOOK.trail]||0xffe66b;
-      spark(tx,groundAt(tx,tz)+0.6,tz,tc,fast?0.7:0.45,fast?2:1.2);
+      trailEmit.i=(trailEmit.i||0)+1; const comet=LOOK.trail==='💫';
+      const tc=LOOK.trail==='🌈'?RAINBOW[trailEmit.i%6]:comet?0xfff6d0:({'⭐':0xffe66b,'💖':0xff7ac0,'💧':0x8ad0ff,'🌸':0xff9ad4,'🌟':0xffd24a,'✨':0xffffff}[LOOK.trail]||0xffe66b);
+      spark(tx,groundAt(tx,tz)+0.6,tz,tc,(fast?0.7:0.45)*(comet?1.5:1),fast?2:1.2);
+      if(comet) spark(tx,groundAt(tx,tz)+1.0,tz,0xb6d8ff,0.35,0.6); // a glittering comet tail
       if(fast) spark(tx+(Math.random()-0.5)*1.3,groundAt(tx,tz)+0.3,tz+(Math.random()-0.5)*1.3,0xfff1d6,0.5,1.6); } }
   if(P.prance>0)P.prance-=dt;
   let rearA=0; if(P.rear>0){ P.rear=Math.max(0,P.rear-dt); const k=1-P.rear/0.9; rearA=Math.sin(k*Math.PI)*0.55; } // tap trick: rear up on the hind legs
@@ -2137,7 +2163,7 @@ let idleT=0, blinkT=3, blinkP=0;
 /* ---- off-screen guide: when the quest friend (or the rainbow star) is out of view, a bubble at the screen edge points the way ---- */
 const guideEl=document.getElementById('guide'), guideIco=guideEl.querySelector('.gb'), guidePt=guideEl.querySelector('.gp'), __gv=new THREE.Vector3(); let guideShown=false, guideIcon='';
 function guideTarget(){ if(zone!=='meadow'||anyOverlayOpen()||CH.bubble||mood.bubble)return null;
-  const q=QUEST.active; if(q&&q.kind==='seek'){ if(q.phase==='seek'&&q.t>20) return {p:q.pal.position,dy:2.4,icon:'🙈'}; } // hide & seek: only a hint after a good try
+  const q=QUEST.active; if(q&&q.kind==='seek'){ return (q.phase==='seek'&&q.t>20)?{p:q.pal.position,dy:2.4,icon:'🙈'}:null; } // hide & seek: only a hint after a good try
   else if(q&&q.pal&&(q.kind!=='bring'||q.ready)) return {p:q.pal.position,dy:2.4,icon:PAL_E[q.pal.userData.kind]||'🦄'}; // bring-quests point the way once the basket is full
   if(magicStar){ const age=(performance.now()-(magicStar.userData.born||0))/1000; if(age<15||(age>60&&age%60<10)) return {p:magicStar.position,dy:0,icon:'🌟'}; } // the star nudges now and then, not nonstop
   if(huntLeft.length && pumpkinGroup && pumpkinGroup.visible){ const s2=(performance.now()-pkHintBase)/1000; if(s2>40 && s2%45<8){ let best=null,bd=1e9; for(const p of huntLeft){ const d=Math.hypot(p.position.x-P.x,p.position.z-P.z); if(d<bd){bd=d;best=p;} } if(best) return {p:best.position,dy:1,icon:'🎃'}; } } // a pumpkin hint if she's been looking a while
@@ -2237,7 +2263,7 @@ Object.assign(window.__SP,{ openParentPanel, resetProfile, buildParentPanel, per
   forceHigh:()=>{ AMBIENCE.low=false; buildStars(); buildCritters(); }, startWeather });
 Object.assign(window.__SP,{ pumpkinState:()=>({built:!!pumpkinGroup,visible:!!(pumpkinGroup&&pumpkinGroup.visible),left:huntLeft.length,found:huntFound,hunt:huntLeft.map(p=>({x:p.position.x,z:p.position.z}))}), applySeason, LOOK, UNLOCK, EARNED_PALS, PHOTOS, takePhoto, unicornTrick, startSeek, FRIENDS:friends, guideShown:()=>guideShown, maneShimmer:()=>maneShimmer, flyWings:()=>flyWings, enterWorld:(k)=>enterWorld(k), openWorldMap:()=>openWorldMap(), buildWorldMap:()=>buildWorldMap(), WORLDS,
   worldState:()=>({zone:zone, unlocked:[...UNLOCKED_WORLDS], visited:(DISCOVERED.worldsVisited||[]).slice(), built:WORLDS.filter(w=>w.built).map(w=>w.key)}),
-  setSparkleLevel:(n)=>{ LEVEL=Math.max(1,Math.min(levelCap(),n|0)); LXP=0; MAGIC_BIG=LEVEL>=8; WORLDS.forEach(w=>{ if(w.home||w.req<=LEVEL)UNLOCKED_WORLDS.add(w.key); }); persistLevel(); persistWorlds(); updateLevelBadge(); } });
+  setSparkleLevel:(n)=>{ LEVEL=Math.max(1,Math.min(levelCap(),n|0)); LEVEL_EARNED=LEVEL; LXP=0; MAGIC_BIG=LEVEL>=8; WORLDS.forEach(w=>{ if(w.home||w.req<=LEVEL)UNLOCKED_WORLDS.add(w.key); }); persistLevel(); persistWorlds(); updateLevelBadge(); } });
 </script>
 </body>
 </html>
